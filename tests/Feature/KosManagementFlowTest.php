@@ -14,6 +14,7 @@ use App\Models\PenyediaKos;
 use App\Models\Penyewa;
 use App\Models\TagihanBulanan;
 use App\Models\User;
+use Database\Seeders\KostAssetSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -448,6 +449,74 @@ class KosManagementFlowTest extends TestCase
             ])
             ->assertRedirect(route('penyewa.pembayaran-awal.create', $pemesanan, absolute: false))
             ->assertSessionHas('error', 'Pembayaran awal sedang diproses atau sudah lunas.');
+    }
+
+    public function test_admin_can_preview_rental_report_and_filter_complaints(): void
+    {
+        $admin = $this->adminUser();
+        [, $penyewa] = $this->penyewaUser();
+        $kos = $this->kos();
+
+        $kamar = Kamar::create([
+            'kos_id' => $kos->id,
+            'nama_kamar' => 'Kamar Report A1',
+            'tipe_kamar' => 'Deluxe',
+            'harga_bulanan' => 950000,
+            'deskripsi' => 'Kamar untuk preview report.',
+            'status' => Kamar::STATUS_TERISI,
+        ]);
+
+        $penghuni = Penghuni::create([
+            'penyewa_id' => $penyewa->id,
+            'kamar_id' => $kamar->id,
+            'tanggal_masuk' => today(),
+            'harga_bulanan' => $kamar->harga_bulanan,
+            'tanggal_jatuh_tempo' => today()->addDays(10),
+            'status_penghuni' => Penghuni::STATUS_AKTIF,
+        ]);
+
+        Keluhan::create([
+            'penghuni_id' => $penghuni->id,
+            'kategori' => 'Listrik bermasalah',
+            'judul' => 'Lampu kamar berkedip',
+            'deskripsi' => 'Lampu kamar perlu diperiksa.',
+            'status_keluhan' => Keluhan::STATUS_DIKIRIM,
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.laporan.index', [
+            'type' => 'penyewaan',
+            'status' => Penghuni::STATUS_AKTIF,
+        ]))->assertOk()
+            ->assertSee('Report Penyewaan')
+            ->assertSee('Kamar Report A1')
+            ->assertSee('Estimasi Sewa Aktif');
+
+        $this->actingAs($admin)->get(route('admin.keluhan.index', [
+            'q' => 'Lampu',
+            'kategori' => 'Listrik bermasalah',
+        ]))->assertOk()
+            ->assertSee('Lampu kamar berkedip')
+            ->assertSee('Listrik bermasalah');
+    }
+
+    public function test_asset_kost_seeder_creates_multi_provider_catalog(): void
+    {
+        $this->seed(KostAssetSeeder::class);
+
+        $this->assertDatabaseHas('kos', [
+            'nama_kos' => 'Asri Kost',
+            'foto' => 'assets/kos/asri-kost.jpeg',
+            'status' => Kos::STATUS_AKTIF,
+        ]);
+
+        $this->assertDatabaseHas('penyedia_kos', ['nama_lengkap' => 'Ibu Fitri Permata']);
+        $this->assertDatabaseHas('kamars', ['nama_kamar' => 'Permata F3', 'status' => Kamar::STATUS_TERSEDIA]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('Pilihan kost dari beberapa penyedia')
+            ->assertSee('Asri Kost')
+            ->assertSee('Permata Kost');
     }
 
     private function adminUser(): User

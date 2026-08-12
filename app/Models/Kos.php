@@ -12,6 +12,7 @@ class Kos extends Model
     protected $table = 'kos';
 
     public const STATUS_AKTIF = 'aktif';
+
     public const STATUS_NONAKTIF = 'nonaktif';
 
     protected $fillable = [
@@ -46,6 +47,10 @@ class Kos extends Model
     public function getFotoUrlAttribute(): string
     {
         if ($this->foto) {
+            if (str_starts_with($this->foto, 'assets/')) {
+                return asset($this->foto);
+            }
+
             return Storage::disk('public')->url($this->foto);
         }
 

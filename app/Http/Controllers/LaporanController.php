@@ -16,6 +16,7 @@ use Illuminate\View\View;
 class LaporanController extends Controller
 {
     public const TYPES = [
+        'penyewaan' => 'Report Penyewaan',
         'kamar' => 'Laporan Data Kamar',
         'penyewa' => 'Laporan Data Penyewa',
         'penghuni' => 'Laporan Data Penghuni Aktif',
@@ -27,14 +28,20 @@ class LaporanController extends Controller
         'pendapatan' => 'Laporan Pendapatan Bulanan',
     ];
 
-    public function index(string $type = 'kamar'): View
+    public function index(Request $request, string $type = 'penyewaan'): View
     {
         abort_unless(array_key_exists($type, self::TYPES), 404);
+
+        $data = $this->dataFor($request, $type);
 
         return view('admin.laporan.index', [
             'types' => self::TYPES,
             'type' => $type,
             'title' => self::TYPES[$type],
+            'rows' => $data['rows'],
+            'totalPendapatan' => $data['totalPendapatan'],
+            'summary' => $data['summary'],
+            'statusOptions' => $this->statusOptions($type),
         ]);
     }
 
@@ -50,6 +57,7 @@ class LaporanController extends Controller
             'type' => $type,
             'rows' => $data['rows'],
             'totalPendapatan' => $data['totalPendapatan'],
+            'summary' => $data['summary'],
             'filters' => $request->only(['tanggal_awal', 'tanggal_akhir', 'bulan', 'tahun', 'status']),
         ])->download(str($title)->slug('-').'.pdf');
     }
@@ -64,7 +72,13 @@ class LaporanController extends Controller
         };
 
         $rows = match ($type) {
-            'kamar' => Kamar::with('fasilitas')->orderBy('nama_kamar')->get(),
+            'penyewaan' => Penghuni::with(['penyewa.user', 'kamar.kos', 'tagihanBulanans'])
+                ->when($request->filled('status'), fn ($q) => $q->where('status_penghuni', $request->status))
+                ->tap(fn ($q) => $dateFilter($q, 'tanggal_masuk'))
+                ->latest('tanggal_masuk')->get(),
+            'kamar' => Kamar::with('fasilitas')
+                ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+                ->orderBy('nama_kamar')->get(),
             'penyewa' => Penyewa::with('user')->latest()->get(),
             'penghuni' => Penghuni::with(['penyewa.user', 'kamar'])->where('status_penghuni', Penghuni::STATUS_AKTIF)->latest()->get(),
             'pemesanan' => Pemesanan::with(['penyewa.user', 'kamar'])
@@ -93,6 +107,46 @@ class LaporanController extends Controller
             $totalPendapatan = $rows->where('status_pembayaran', 'lunas')->sum('jumlah_bayar');
         }
 
-        return compact('rows', 'totalPendapatan');
+        if ($type === 'penyewaan') {
+            $totalPendapatan = $rows
+                ->where('status_penghuni', Penghuni::STATUS_AKTIF)
+                ->sum('harga_bulanan');
+        }
+
+        $summary = $this->summaryFor($type, $rows, $totalPendapatan);
+
+        return compact('rows', 'totalPendapatan', 'summary');
+    }
+
+    private function summaryFor(string $type, $rows, int $totalPendapatan): array
+    {
+        if ($type === 'penyewaan') {
+            return [
+                ['label' => 'Total Data Sewa', 'value' => $rows->count()],
+                ['label' => 'Penghuni Aktif', 'value' => $rows->where('status_penghuni', Penghuni::STATUS_AKTIF)->count()],
+                ['label' => 'Kamar Tersedia', 'value' => Kamar::where('status', Kamar::STATUS_TERSEDIA)->count()],
+                ['label' => 'Estimasi Sewa Aktif', 'value' => 'Rp '.number_format($totalPendapatan, 0, ',', '.')],
+            ];
+        }
+
+        return [
+            ['label' => 'Total Data', 'value' => $rows->count()],
+            ['label' => 'Kamar Terisi', 'value' => Kamar::where('status', Kamar::STATUS_TERISI)->count()],
+            ['label' => 'Pemesanan Menunggu', 'value' => Pemesanan::where('status_pemesanan', Pemesanan::STATUS_MENUNGGU)->count()],
+            ['label' => 'Tagihan Terlambat', 'value' => TagihanBulanan::where('status_tagihan', TagihanBulanan::STATUS_TERLAMBAT)->count()],
+        ];
+    }
+
+    private function statusOptions(string $type): array
+    {
+        return match ($type) {
+            'penyewaan' => Penghuni::STATUSES,
+            'pemesanan' => Pemesanan::STATUSES,
+            'pembayaran-awal' => PembayaranAwal::STATUSES,
+            'tagihan-bulanan' => TagihanBulanan::STATUSES,
+            'pembayaran-bulanan', 'pendapatan' => PembayaranBulanan::STATUSES,
+            'kamar' => Kamar::STATUSES,
+            default => [],
+        };
     }
 }

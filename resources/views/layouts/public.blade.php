@@ -84,5 +84,6 @@
             @endforeach
         </div>
     </nav>
+    <x-theme-switcher />
 </body>
 </html>

@@ -11,6 +11,14 @@ class HomeController extends Controller
 {
     public function index(): View
     {
+        $featuredKos = Kos::with(['penyediaKos', 'kamars' => fn ($query) => $query->where('status', Kamar::STATUS_TERSEDIA)->with('fasilitas')])
+            ->withCount(['kamars' => fn ($query) => $query->where('status', Kamar::STATUS_TERSEDIA)])
+            ->where('status', Kos::STATUS_AKTIF)
+            ->orderByDesc('is_promoted')
+            ->orderBy('nama_kos')
+            ->take(8)
+            ->get();
+
         $kamars = Kamar::with('fasilitas')
             ->with('kos')
             ->where('status', Kamar::STATUS_TERSEDIA)
@@ -26,7 +34,7 @@ class HomeController extends Controller
             'promo' => Kos::where('status', Kos::STATUS_AKTIF)->where('is_promoted', true)->count(),
         ];
 
-        return view('public.home', compact('kamars', 'kosMarkers', 'stats'));
+        return view('public.home', compact('featuredKos', 'kamars', 'kosMarkers', 'stats'));
     }
 
     public function kamarIndex(Request $request): View

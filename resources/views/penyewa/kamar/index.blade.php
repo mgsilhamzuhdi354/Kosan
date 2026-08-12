@@ -69,8 +69,8 @@
                         <div>
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0">
-                                    <h2 class="line-clamp-1 text-sm font-black sm:text-lg">{{ $kamar->nama_kamar }}</h2>
-                                    <p class="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">Betung, Banyuasin</p>
+                                    <h2 class="line-clamp-1 text-sm font-black sm:text-lg">{{ $kamar->kos?->nama_kos }} - {{ $kamar->nama_kamar }}</h2>
+                                    <p class="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{{ $kamar->kos?->alamat ?? 'Betung, Banyuasin' }}</p>
                                 </div>
                                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500"><x-icon name="heart" class="h-4 w-4" /></span>
                             </div>

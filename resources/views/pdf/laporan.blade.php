@@ -11,6 +11,10 @@
         th, td { border: 1px solid #d1d5db; padding: 6px; vertical-align: top; }
         th { background: #f3f4f6; text-align: left; }
         .total { margin-top: 14px; font-weight: bold; }
+        .summary { width: 100%; margin-top: 14px; border-collapse: collapse; }
+        .summary td { width: 25%; background: #f9fafb; }
+        .summary .label { color: #4b5563; font-size: 9px; text-transform: uppercase; }
+        .summary .value { margin-top: 3px; font-size: 13px; font-weight: bold; }
         .sign { margin-top: 45px; width: 220px; float: right; text-align: center; }
     </style>
 </head>
@@ -18,6 +22,19 @@
     <h1>{{ $title }}</h1>
     <p class="meta">{{ config('app.name') }} | Tanggal cetak: {{ now()->format('d/m/Y H:i') }}</p>
     <p class="meta">Filter: {{ collect($filters)->filter()->map(fn ($v, $k) => "$k=$v")->join(', ') ?: 'Semua data' }}</p>
+
+    @if (! empty($summary))
+        <table class="summary">
+            <tr>
+                @foreach ($summary as $item)
+                    <td>
+                        <div class="label">{{ $item['label'] }}</div>
+                        <div class="value">{{ $item['value'] }}</div>
+                    </td>
+                @endforeach
+            </tr>
+        </table>
+    @endif
 
     <table>
         <thead>
@@ -33,7 +50,9 @@
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>
-                        @if ($type === 'kamar')
+                        @if ($type === 'penyewaan')
+                            {{ $row->penyewa->nama_lengkap }}<br>{{ $row->kamar->nama_kamar }}
+                        @elseif ($type === 'kamar')
                             {{ $row->nama_kamar }}<br>{{ $row->tipe_kamar }}
                         @elseif ($type === 'penyewa')
                             {{ $row->nama_lengkap }}<br>{{ $row->user->email }}
@@ -50,7 +69,9 @@
                         @endif
                     </td>
                     <td>
-                        @if ($type === 'kamar')
+                        @if ($type === 'penyewaan')
+                            Masuk {{ $row->tanggal_masuk->format('d/m/Y') }}<br>Jatuh tempo {{ $row->tanggal_jatuh_tempo->format('d/m/Y') }}
+                        @elseif ($type === 'kamar')
                             {{ $row->fasilitas->pluck('nama_fasilitas')->join(', ') }}
                         @elseif ($type === 'penyewa')
                             {{ $row->no_hp }}<br>{{ $row->alamat }}
@@ -67,7 +88,9 @@
                         @endif
                     </td>
                     <td>
-                        @if ($type === 'kamar')
+                        @if ($type === 'penyewaan')
+                            {{ ucfirst($row->status_penghuni) }}<br>{{ $row->harga_format }}
+                        @elseif ($type === 'kamar')
                             {{ ucfirst($row->status) }}<br>{{ $row->harga_format }}
                         @elseif ($type === 'penghuni')
                             {{ ucfirst($row->status_penghuni) }}<br>{{ $row->harga_format }}

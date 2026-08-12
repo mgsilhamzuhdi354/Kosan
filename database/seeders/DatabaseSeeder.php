@@ -230,5 +230,7 @@ class DatabaseSeeder extends Seeder
             'deskripsi' => 'Mohon jadwal kebersihan area dapur ditambah.',
             'status_keluhan' => Keluhan::STATUS_DIPROSES,
         ]);
+
+        $this->call(KostAssetSeeder::class);
     }
 }

@@ -88,5 +88,6 @@
             </main>
         </div>
     </div>
+    <x-theme-switcher />
 </body>
 </html>

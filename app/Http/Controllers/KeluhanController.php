@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Keluhan;
-use App\Models\Penghuni;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -13,8 +12,29 @@ class KeluhanController extends Controller
 {
     public function adminIndex(Request $request): View
     {
+        $stats = [
+            'total' => Keluhan::count(),
+            'dikirim' => Keluhan::where('status_keluhan', Keluhan::STATUS_DIKIRIM)->count(),
+            'diproses' => Keluhan::where('status_keluhan', Keluhan::STATUS_DIPROSES)->count(),
+            'selesai' => Keluhan::where('status_keluhan', Keluhan::STATUS_SELESAI)->count(),
+            'ditolak' => Keluhan::where('status_keluhan', Keluhan::STATUS_DITOLAK)->count(),
+            'lampiran' => Keluhan::whereNotNull('foto')->count(),
+        ];
+
         $keluhans = Keluhan::with(['penghuni.penyewa.user', 'penghuni.kamar'])
             ->when($request->filled('status'), fn ($query) => $query->where('status_keluhan', $request->status))
+            ->when($request->filled('kategori'), fn ($query) => $query->where('kategori', $request->kategori))
+            ->when($request->filled('q'), function ($query) use ($request) {
+                $search = $request->q;
+
+                $query->where(function ($query) use ($search) {
+                    $query->where('judul', 'like', "%{$search}%")
+                        ->orWhere('kategori', 'like', "%{$search}%")
+                        ->orWhere('deskripsi', 'like', "%{$search}%")
+                        ->orWhereHas('penghuni.penyewa', fn ($q) => $q->where('nama_lengkap', 'like', "%{$search}%"))
+                        ->orWhereHas('penghuni.kamar', fn ($q) => $q->where('nama_kamar', 'like', "%{$search}%"));
+                });
+            })
             ->latest()
             ->paginate(12)
             ->withQueryString();
@@ -22,6 +42,8 @@ class KeluhanController extends Controller
         return view('admin.keluhans.index', [
             'keluhans' => $keluhans,
             'statuses' => Keluhan::STATUSES,
+            'kategori' => Keluhan::KATEGORI,
+            'stats' => $stats,
         ]);
     }
 

@@ -132,6 +132,50 @@
 
         <div class="flex items-center justify-between gap-3">
             <div>
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Penyedia Kost Lain</p>
+                <h2 class="mt-1 text-xl font-black tracking-tight sm:text-3xl">Pilihan kost dari beberapa penyedia</h2>
+                <p class="mt-1 text-xs font-bold text-slate-500 sm:text-sm">Data kost dari aset lokal ditampilkan sebagai katalog multi-penyedia.</p>
+            </div>
+            <a href="{{ route('public.maps') }}" class="shrink-0 text-sm font-black text-sky-700">Lihat peta &gt;</a>
+        </div>
+
+        <div class="mobile-safe-scroll mt-5 flex gap-4 overflow-x-auto pb-4 lg:grid lg:grid-cols-3 lg:overflow-visible">
+            @forelse ($featuredKos as $kos)
+                @php
+                    $startingPrice = $kos->kamars->min('harga_bulanan');
+                @endphp
+                <article class="compact-room-card w-[290px] shrink-0 overflow-hidden rounded-3xl lg:w-auto">
+                    <a href="{{ route('public.kamar.index', ['lokasi' => $kos->nama_kos]) }}" class="block">
+                        <div class="relative h-44">
+                            <img src="{{ $kos->foto_url }}" alt="{{ $kos->nama_kos }}" class="h-full w-full object-cover">
+                            @if ($kos->is_promoted)
+                                <span class="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-sky-700 shadow-sm">Promo</span>
+                            @endif
+                            <span class="absolute bottom-3 right-3 rounded-full bg-slate-950/80 px-3 py-1 text-xs font-black text-white">{{ $kos->kamars_count }} kamar tersedia</span>
+                        </div>
+                        <div class="p-4">
+                            <h3 class="line-clamp-1 text-lg font-black">{{ $kos->nama_kos }}</h3>
+                            <p class="mt-1 line-clamp-1 text-xs font-semibold text-slate-500">{{ $kos->alamat }}</p>
+                            <div class="mt-4 grid grid-cols-2 gap-3 text-xs">
+                                <div class="rounded-2xl bg-slate-50 p-3">
+                                    <p class="font-bold text-slate-400">Penyedia</p>
+                                    <p class="mt-1 truncate font-black text-slate-800">{{ $kos->penyediaKos?->nama_lengkap }}</p>
+                                </div>
+                                <div class="rounded-2xl bg-slate-50 p-3">
+                                    <p class="font-bold text-slate-400">Mulai dari</p>
+                                    <p class="mt-1 font-black text-sky-700">{{ $startingPrice ? 'Rp '.number_format($startingPrice, 0, ',', '.') : '-' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </article>
+            @empty
+                <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500 lg:col-span-3">Belum ada data kos aktif.</div>
+            @endforelse
+        </div>
+
+        <div class="flex items-center justify-between gap-3">
+            <div>
                 <h2 class="text-xl font-black tracking-tight sm:text-3xl">Rekomendasi Kost untukmu</h2>
                 <p class="mt-1 text-xs font-bold text-slate-500 sm:text-sm">Kamar tersedia dengan informasi harga dan fasilitas.</p>
             </div>

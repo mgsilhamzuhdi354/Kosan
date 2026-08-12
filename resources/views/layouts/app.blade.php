@@ -32,5 +32,6 @@
                 {{ $slot }}
             </main>
         </div>
+        <x-theme-switcher />
     </body>
 </html>
