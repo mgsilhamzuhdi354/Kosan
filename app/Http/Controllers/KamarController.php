@@ -164,19 +164,21 @@ class KamarController extends Controller
 
     public function penyediaCreate(): View
     {
+        $penyedia = auth()->user()->penyediaKos;
+
         return view('penyedia.kamars.form', [
             'kamar' => new Kamar,
-            'fasilitas' => Fasilitas::orderBy('nama_fasilitas')->get(),
+            'fasilitas' => Fasilitas::visibleForPenyedia($penyedia->id)->orderBy('nama_fasilitas')->get(),
             'selectedFasilitas' => [],
             'statuses' => Kamar::STATUSES,
-            'kosOptions' => auth()->user()->penyediaKos->kos()->orderBy('nama_kos')->get(),
+            'kosOptions' => $penyedia->kos()->orderBy('nama_kos')->get(),
         ]);
     }
 
     public function penyediaStore(Request $request): RedirectResponse
     {
         $ownedKosIds = $this->ownedKosIds();
-        $data = $this->validatedData($request, allowedKosIds: $ownedKosIds);
+        $data = $this->validatedData($request, allowedKosIds: $ownedKosIds, allowedFasilitasIds: $this->availableFasilitasIds());
 
         $fasilitasIds = $data['fasilitas'] ?? [];
         unset($data['fasilitas']);
@@ -202,13 +204,14 @@ class KamarController extends Controller
     public function penyediaEdit(Kamar $kamar): View
     {
         $this->authorizeOwnedKamar($kamar);
+        $penyedia = auth()->user()->penyediaKos;
 
         return view('penyedia.kamars.form', [
             'kamar' => $kamar,
-            'fasilitas' => Fasilitas::orderBy('nama_fasilitas')->get(),
+            'fasilitas' => Fasilitas::visibleForPenyedia($penyedia->id)->orderBy('nama_fasilitas')->get(),
             'selectedFasilitas' => $kamar->fasilitas()->pluck('fasilitas.id')->toArray(),
             'statuses' => Kamar::STATUSES,
-            'kosOptions' => auth()->user()->penyediaKos->kos()->orderBy('nama_kos')->get(),
+            'kosOptions' => $penyedia->kos()->orderBy('nama_kos')->get(),
         ]);
     }
 
@@ -216,7 +219,7 @@ class KamarController extends Controller
     {
         $this->authorizeOwnedKamar($kamar);
         $ownedKosIds = $this->ownedKosIds();
-        $data = $this->validatedData($request, $kamar, $ownedKosIds);
+        $data = $this->validatedData($request, $kamar, $ownedKosIds, $this->availableFasilitasIds());
 
         $fasilitasIds = $data['fasilitas'] ?? [];
         unset($data['fasilitas']);
@@ -251,13 +254,18 @@ class KamarController extends Controller
         return redirect()->route('penyedia.kamar.index')->with('success', 'Data kamar berhasil dihapus.');
     }
 
-    private function validatedData(Request $request, ?Kamar $kamar = null, ?array $allowedKosIds = null): array
+    private function validatedData(Request $request, ?Kamar $kamar = null, ?array $allowedKosIds = null, ?array $allowedFasilitasIds = null): array
     {
         $kosId = $request->input('kos_id', $kamar?->kos_id);
         $kosRule = Rule::exists('kos', 'id');
+        $fasilitasRule = Rule::exists('fasilitas', 'id');
 
         if ($allowedKosIds !== null) {
             $kosRule->where(fn ($query) => $query->whereIn('id', $allowedKosIds));
+        }
+
+        if ($allowedFasilitasIds !== null) {
+            $fasilitasRule->where(fn ($query) => $query->whereIn('id', $allowedFasilitasIds));
         }
 
         return $request->validate([
@@ -276,11 +284,12 @@ class KamarController extends Controller
             'status' => ['required', Rule::in(Kamar::STATUSES)],
             'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'fasilitas' => ['array'],
-            'fasilitas.*' => ['exists:fasilitas,id'],
+            'fasilitas.*' => [$fasilitasRule],
         ], [
             'nama_kamar.unique' => 'Nama kamar sudah digunakan pada kos yang dipilih.',
             'kos_id.required' => 'Pilih kos terlebih dahulu.',
             'kos_id.exists' => 'Kos yang dipilih tidak valid.',
+            'fasilitas.*.exists' => 'Fasilitas yang dipilih tidak valid.',
         ]);
     }
 
@@ -298,5 +307,16 @@ class KamarController extends Controller
     private function authorizeOwnedKamar(Kamar $kamar): void
     {
         abort_unless(in_array((int) $kamar->kos_id, $this->ownedKosIds(), true), 403);
+    }
+
+    private function availableFasilitasIds(): array
+    {
+        $penyedia = auth()->user()->penyediaKos;
+
+        if (! $penyedia) {
+            return [];
+        }
+
+        return Fasilitas::visibleForPenyedia($penyedia->id)->pluck('id')->map(fn ($id) => (int) $id)->all();
     }
 }

@@ -44,6 +44,12 @@ Route::middleware(['auth', 'role:penyedia_kos'])->prefix('penyedia')->name('peny
     Route::get('/kos/{kos}/edit', [PenyediaKosController::class, 'edit'])->name('kos.edit');
     Route::put('/kos/{kos}', [PenyediaKosController::class, 'update'])->name('kos.update');
     Route::delete('/kos/{kos}', [PenyediaKosController::class, 'destroy'])->name('kos.destroy');
+    Route::get('/fasilitas', [FasilitasController::class, 'penyediaIndex'])->name('fasilitas.index');
+    Route::get('/fasilitas/create', [FasilitasController::class, 'penyediaCreate'])->name('fasilitas.create');
+    Route::post('/fasilitas', [FasilitasController::class, 'penyediaStore'])->name('fasilitas.store');
+    Route::get('/fasilitas/{fasilitas}/edit', [FasilitasController::class, 'penyediaEdit'])->name('fasilitas.edit');
+    Route::put('/fasilitas/{fasilitas}', [FasilitasController::class, 'penyediaUpdate'])->name('fasilitas.update');
+    Route::delete('/fasilitas/{fasilitas}', [FasilitasController::class, 'penyediaDestroy'])->name('fasilitas.destroy');
     Route::get('/kamar', [KamarController::class, 'penyediaIndex'])->name('kamar.index');
     Route::get('/kamar/create', [KamarController::class, 'penyediaCreate'])->name('kamar.create');
     Route::post('/kamar', [KamarController::class, 'penyediaStore'])->name('kamar.store');

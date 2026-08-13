@@ -26,4 +26,9 @@ class PenyediaKos extends Model
     {
         return $this->hasMany(Kos::class);
     }
+
+    public function fasilitas(): HasMany
+    {
+        return $this->hasMany(Fasilitas::class);
+    }
 }

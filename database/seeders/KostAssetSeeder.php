@@ -15,7 +15,7 @@ class KostAssetSeeder extends Seeder
     public function run(): void
     {
         $fasilitas = collect(['Kasur', 'Lemari', 'Kipas Angin', 'AC', 'WiFi', 'Kamar Mandi Dalam', 'Listrik', 'Air', 'Parkir Motor', 'Dapur Bersama'])
-            ->mapWithKeys(fn (string $nama) => [$nama => Fasilitas::firstOrCreate(['nama_fasilitas' => $nama])]);
+            ->mapWithKeys(fn (string $nama) => [$nama => Fasilitas::firstOrCreate(['penyedia_kos_id' => null, 'nama_fasilitas' => $nama])]);
 
         collect($this->kostData())->each(function (array $item, int $index) use ($fasilitas) {
             $user = User::updateOrCreate(

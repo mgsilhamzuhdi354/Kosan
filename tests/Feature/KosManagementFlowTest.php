@@ -223,6 +223,94 @@ class KosManagementFlowTest extends TestCase
         $this->assertDatabaseHas('kamars', ['nama_kamar' => 'Kamar Penyedia', 'kos_id' => $ownedKos->id]);
     }
 
+    public function test_penyedia_can_add_and_use_owned_facilities(): void
+    {
+        $penyediaUser = User::create([
+            'name' => 'Penyedia Fasilitas',
+            'email' => 'penyedia-fasilitas@example.com',
+            'password' => Hash::make('password'),
+            'role' => User::ROLE_PENYEDIA_KOS,
+        ]);
+
+        $penyedia = PenyediaKos::create([
+            'user_id' => $penyediaUser->id,
+            'nama_lengkap' => 'Penyedia Fasilitas',
+            'no_hp' => '082111111114',
+            'alamat' => 'Betung',
+        ]);
+
+        $ownedKos = Kos::create([
+            'penyedia_kos_id' => $penyedia->id,
+            'nama_kos' => 'Kos Fasilitas Milik',
+            'alamat' => 'Jl. Fasilitas',
+            'kota' => 'Betung',
+            'deskripsi' => 'Kos untuk fasilitas penyedia.',
+            'status' => Kos::STATUS_AKTIF,
+        ]);
+
+        $otherPenyedia = PenyediaKos::create([
+            'user_id' => User::create([
+                'name' => 'Penyedia Lain Fasilitas',
+                'email' => 'penyedia-lain-fasilitas@example.com',
+                'password' => Hash::make('password'),
+                'role' => User::ROLE_PENYEDIA_KOS,
+            ])->id,
+            'nama_lengkap' => 'Penyedia Lain Fasilitas',
+            'no_hp' => '082111111115',
+            'alamat' => 'Betung',
+        ]);
+
+        $globalFacility = Fasilitas::create(['nama_fasilitas' => 'WiFi']);
+        $otherFacility = Fasilitas::create([
+            'penyedia_kos_id' => $otherPenyedia->id,
+            'nama_fasilitas' => 'Ruang Jemur Privat',
+        ]);
+
+        $this->actingAs($penyediaUser)->get(route('penyedia.fasilitas.index'))
+            ->assertOk()
+            ->assertSee('WiFi')
+            ->assertDontSee('Ruang Jemur Privat');
+
+        $this->actingAs($penyediaUser)->post(route('penyedia.fasilitas.store'), [
+            'nama_fasilitas' => 'Dapur Mini',
+        ])->assertRedirect(route('penyedia.fasilitas.index', absolute: false));
+
+        $ownedFacility = Fasilitas::where('nama_fasilitas', 'Dapur Mini')->firstOrFail();
+        $this->assertSame($penyedia->id, $ownedFacility->penyedia_kos_id);
+
+        $this->actingAs($penyediaUser)->post(route('penyedia.fasilitas.store'), [
+            'nama_fasilitas' => 'WiFi',
+        ])->assertSessionHasErrors('nama_fasilitas');
+
+        $this->actingAs($penyediaUser)->post(route('penyedia.kamar.store'), [
+            'nama_kamar' => 'Kamar Fasilitas A1',
+            'kos_id' => $ownedKos->id,
+            'tipe_kamar' => 'Standar',
+            'harga_bulanan' => 800000,
+            'deskripsi' => 'Kamar dengan fasilitas tambahan penyedia.',
+            'status' => Kamar::STATUS_TERSEDIA,
+            'fasilitas' => [$globalFacility->id, $ownedFacility->id],
+        ])->assertRedirect(route('penyedia.kamar.index', absolute: false));
+
+        $kamar = Kamar::where('nama_kamar', 'Kamar Fasilitas A1')->firstOrFail();
+        $this->assertDatabaseHas('kamar_fasilitas', ['kamar_id' => $kamar->id, 'fasilitas_id' => $globalFacility->id]);
+        $this->assertDatabaseHas('kamar_fasilitas', ['kamar_id' => $kamar->id, 'fasilitas_id' => $ownedFacility->id]);
+
+        $this->actingAs($penyediaUser)->post(route('penyedia.kamar.store'), [
+            'nama_kamar' => 'Kamar Fasilitas A2',
+            'kos_id' => $ownedKos->id,
+            'tipe_kamar' => 'Standar',
+            'harga_bulanan' => 800000,
+            'deskripsi' => 'Kamar yang mencoba fasilitas penyedia lain.',
+            'status' => Kamar::STATUS_TERSEDIA,
+            'fasilitas' => [$otherFacility->id],
+        ])->assertSessionHasErrors('fasilitas.0');
+
+        $this->actingAs($penyediaUser)->get(route('penyedia.fasilitas.edit', $otherFacility))
+            ->assertRedirect(route('dashboard', absolute: false))
+            ->assertSessionHas('error', 'Akses tidak diizinkan.');
+    }
+
     public function test_penyedia_can_manage_owned_kos_catalog(): void
     {
         $penyediaUser = User::create([

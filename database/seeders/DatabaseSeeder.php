@@ -112,7 +112,7 @@ class DatabaseSeeder extends Seeder
         });
 
         $fasilitas = collect(['Kasur', 'Lemari', 'Kipas Angin', 'AC', 'WiFi', 'Kamar Mandi Dalam', 'Listrik', 'Air'])
-            ->map(fn ($nama) => Fasilitas::firstOrCreate(['nama_fasilitas' => $nama]));
+            ->map(fn ($nama) => Fasilitas::firstOrCreate(['penyedia_kos_id' => null, 'nama_fasilitas' => $nama]));
 
         $kamarData = [
             ['Kamar A1', 'Standar', 750000, Kamar::STATUS_TERSEDIA],
