@@ -66,34 +66,32 @@ class PembayaranBulananController extends Controller
 
     public function approve(PembayaranBulanan $pembayaranBulanan): RedirectResponse
     {
-        DB::transaction(function () use ($pembayaranBulanan) {
-            abort_if($pembayaranBulanan->status_pembayaran !== PembayaranBulanan::STATUS_MENUNGGU, 422);
-
-            $pembayaranBulanan->update([
-                'status_pembayaran' => PembayaranBulanan::STATUS_LUNAS,
-                'catatan_admin' => null,
-            ]);
-
-            $pembayaranBulanan->tagihanBulanan()->update(['status_tagihan' => TagihanBulanan::STATUS_LUNAS]);
-        });
+        $this->approvePayment($pembayaranBulanan);
 
         return back()->with('success', 'Pembayaran bulanan disetujui.');
     }
 
     public function reject(Request $request, PembayaranBulanan $pembayaranBulanan): RedirectResponse
     {
-        abort_if($pembayaranBulanan->status_pembayaran !== PembayaranBulanan::STATUS_MENUNGGU, 422);
-
         $data = $request->validate(['catatan_admin' => ['required', 'string', 'max:1000']]);
+        $this->rejectPayment($pembayaranBulanan, $data['catatan_admin']);
 
-        DB::transaction(function () use ($pembayaranBulanan, $data) {
-            $pembayaranBulanan->update([
-                'status_pembayaran' => PembayaranBulanan::STATUS_DITOLAK,
-                'catatan_admin' => $data['catatan_admin'],
-            ]);
+        return back()->with('success', 'Pembayaran bulanan ditolak.');
+    }
 
-            $pembayaranBulanan->tagihanBulanan()->update(['status_tagihan' => TagihanBulanan::STATUS_DITOLAK]);
-        });
+    public function penyediaApprove(PembayaranBulanan $pembayaranBulanan): RedirectResponse
+    {
+        $this->authorizeOwnedPembayaran($pembayaranBulanan);
+        $this->approvePayment($pembayaranBulanan);
+
+        return back()->with('success', 'Pembayaran bulanan disetujui.');
+    }
+
+    public function penyediaReject(Request $request, PembayaranBulanan $pembayaranBulanan): RedirectResponse
+    {
+        $this->authorizeOwnedPembayaran($pembayaranBulanan);
+        $data = $request->validate(['catatan_admin' => ['required', 'string', 'max:1000']]);
+        $this->rejectPayment($pembayaranBulanan, $data['catatan_admin']);
 
         return back()->with('success', 'Pembayaran bulanan ditolak.');
     }
@@ -113,12 +111,50 @@ class PembayaranBulananController extends Controller
     {
         $pembayaranBulanan->load('tagihanBulanan.penghuni.penyewa.user', 'tagihanBulanan.penghuni.kamar');
 
-        if (! auth()->user()->isAdmin()) {
+        if (auth()->user()->isPenyediaKos()) {
+            $this->authorizeOwnedPembayaran($pembayaranBulanan);
+        } elseif (! auth()->user()->isAdmin()) {
             abort_unless($pembayaranBulanan->tagihanBulanan->penghuni->penyewa_id === auth()->user()->penyewa->id, 403);
         }
 
         abort_if($pembayaranBulanan->status_pembayaran !== PembayaranBulanan::STATUS_LUNAS, 422);
 
         return Pdf::loadView('pdf.bukti-pembayaran', compact('pembayaranBulanan'))->download('bukti-pembayaran-'.$pembayaranBulanan->id.'.pdf');
+    }
+
+    private function approvePayment(PembayaranBulanan $pembayaranBulanan): void
+    {
+        DB::transaction(function () use ($pembayaranBulanan) {
+            abort_if($pembayaranBulanan->status_pembayaran !== PembayaranBulanan::STATUS_MENUNGGU, 422);
+
+            $pembayaranBulanan->update([
+                'status_pembayaran' => PembayaranBulanan::STATUS_LUNAS,
+                'catatan_admin' => null,
+            ]);
+
+            $pembayaranBulanan->tagihanBulanan()->update(['status_tagihan' => TagihanBulanan::STATUS_LUNAS]);
+        });
+    }
+
+    private function rejectPayment(PembayaranBulanan $pembayaranBulanan, string $catatanAdmin): void
+    {
+        abort_if($pembayaranBulanan->status_pembayaran !== PembayaranBulanan::STATUS_MENUNGGU, 422);
+
+        DB::transaction(function () use ($pembayaranBulanan, $catatanAdmin) {
+            $pembayaranBulanan->update([
+                'status_pembayaran' => PembayaranBulanan::STATUS_DITOLAK,
+                'catatan_admin' => $catatanAdmin,
+            ]);
+
+            $pembayaranBulanan->tagihanBulanan()->update(['status_tagihan' => TagihanBulanan::STATUS_DITOLAK]);
+        });
+    }
+
+    private function authorizeOwnedPembayaran(PembayaranBulanan $pembayaranBulanan): void
+    {
+        $pembayaranBulanan->loadMissing('tagihanBulanan.penghuni.kamar');
+        $kosIds = auth()->user()->penyediaKos?->kos()->pluck('id')->map(fn ($id) => (int) $id)->all() ?? [];
+
+        abort_unless(in_array((int) $pembayaranBulanan->tagihanBulanan->penghuni->kamar->kos_id, $kosIds, true), 403);
     }
 }

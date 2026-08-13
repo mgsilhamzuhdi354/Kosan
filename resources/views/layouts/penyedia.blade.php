@@ -20,7 +20,10 @@
                 <nav class="mt-5 flex-1 space-y-2">
                     @foreach ([
                         ['label' => 'Dashboard', 'route' => 'penyedia.dashboard', 'icon' => 'home'],
+                        ['label' => 'Data Kos', 'route' => 'penyedia.kos.index', 'icon' => 'map-pin'],
                         ['label' => 'Data Kamar', 'route' => 'penyedia.kamar.index', 'icon' => 'bed'],
+                        ['label' => 'Pemesanan', 'route' => 'penyedia.pemesanan.index', 'icon' => 'clipboard'],
+                        ['label' => 'Keuangan', 'route' => 'penyedia.keuangan.index', 'icon' => 'credit-card'],
                     ] as $item)
                         <a href="{{ route($item['route']) }}" class="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-black {{ request()->routeIs($item['route'].'*') ? 'bg-sky-600 text-white shadow-lg shadow-sky-100' : 'bg-white text-slate-600 shadow-sm' }}">
                             <x-icon :name="$item['icon']" class="h-5 w-5" />
@@ -46,7 +49,10 @@
                 </div>
                 <nav class="mobile-safe-scroll flex gap-2 overflow-x-auto border-t border-slate-200/70 px-4 py-3 md:hidden">
                     <a href="{{ route('penyedia.dashboard') }}" class="shrink-0 rounded-2xl px-4 py-2.5 text-xs font-extrabold {{ request()->routeIs('penyedia.dashboard') ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 shadow-sm' }}">Dashboard</a>
+                    <a href="{{ route('penyedia.kos.index') }}" class="shrink-0 rounded-2xl px-4 py-2.5 text-xs font-extrabold {{ request()->routeIs('penyedia.kos.*') ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 shadow-sm' }}">Kos</a>
                     <a href="{{ route('penyedia.kamar.index') }}" class="shrink-0 rounded-2xl px-4 py-2.5 text-xs font-extrabold {{ request()->routeIs('penyedia.kamar.*') ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 shadow-sm' }}">Kamar</a>
+                    <a href="{{ route('penyedia.pemesanan.index') }}" class="shrink-0 rounded-2xl px-4 py-2.5 text-xs font-extrabold {{ request()->routeIs('penyedia.pemesanan.*') ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 shadow-sm' }}">Pemesanan</a>
+                    <a href="{{ route('penyedia.keuangan.index') }}" class="shrink-0 rounded-2xl px-4 py-2.5 text-xs font-extrabold {{ request()->routeIs('penyedia.keuangan.*') ? 'bg-sky-600 text-white' : 'bg-white text-slate-700 shadow-sm' }}">Keuangan</a>
                 </nav>
             </header>
 

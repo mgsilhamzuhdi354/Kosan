@@ -37,24 +37,7 @@ class PemesananController extends Controller
     {
         $request->validate(['catatan_admin' => ['nullable', 'string', 'max:1000']]);
 
-        DB::transaction(function () use ($request, $pemesanan) {
-            $pemesanan->load('kamar');
-
-            abort_if($pemesanan->status_pemesanan !== Pemesanan::STATUS_MENUNGGU, 422, 'Pemesanan tidak bisa dikonfirmasi ulang.');
-            abort_if($pemesanan->kamar->status !== Kamar::STATUS_TERSEDIA, 422, 'Kamar sudah tidak tersedia.');
-
-            $pemesanan->update([
-                'status_pemesanan' => Pemesanan::STATUS_DITERIMA,
-                'catatan_admin' => $request->catatan_admin,
-            ]);
-
-            $pemesanan->kamar->update(['status' => Kamar::STATUS_DIPESAN]);
-
-            PembayaranAwal::firstOrCreate(
-                ['pemesanan_id' => $pemesanan->id],
-                ['status_pembayaran' => PembayaranAwal::STATUS_BELUM_BAYAR]
-            );
-        });
+        $this->approvePemesanan($pemesanan, $request->catatan_admin);
 
         return back()->with('success', 'Pemesanan diterima dan kamar berubah menjadi dipesan.');
     }
@@ -63,19 +46,51 @@ class PemesananController extends Controller
     {
         $request->validate(['catatan_admin' => ['required', 'string', 'max:1000']]);
 
-        DB::transaction(function () use ($request, $pemesanan) {
-            abort_if(! in_array($pemesanan->status_pemesanan, [Pemesanan::STATUS_MENUNGGU, Pemesanan::STATUS_DITERIMA], true), 422);
+        $this->rejectPemesanan($pemesanan, $request->catatan_admin);
 
-            $pemesanan->load('kamar');
-            $pemesanan->update([
-                'status_pemesanan' => Pemesanan::STATUS_DITOLAK,
-                'catatan_admin' => $request->catatan_admin,
-            ]);
+        return back()->with('success', 'Pemesanan ditolak.');
+    }
 
-            if ($pemesanan->kamar->status === Kamar::STATUS_DIPESAN) {
-                $pemesanan->kamar->update(['status' => Kamar::STATUS_TERSEDIA]);
-            }
-        });
+    public function penyediaIndex(Request $request): View
+    {
+        $kosIds = $this->ownedKosIds();
+        $pemesanans = Pemesanan::with(['penyewa.user', 'kamar.kos', 'pembayaranAwal'])
+            ->whereHas('kamar', fn ($query) => $query->whereIn('kos_id', $kosIds))
+            ->when($request->filled('status'), fn ($query) => $query->where('status_pemesanan', $request->status))
+            ->latest()
+            ->paginate(12)
+            ->withQueryString();
+
+        return view('penyedia.pemesanans.index', [
+            'pemesanans' => $pemesanans,
+            'statuses' => Pemesanan::STATUSES,
+        ]);
+    }
+
+    public function penyediaShow(Pemesanan $pemesanan): View
+    {
+        $this->authorizeOwnedPemesanan($pemesanan);
+        $pemesanan->load(['penyewa.user', 'kamar.fasilitas', 'kamar.kos', 'pembayaranAwal']);
+
+        return view('penyedia.pemesanans.show', compact('pemesanan'));
+    }
+
+    public function penyediaApprove(Request $request, Pemesanan $pemesanan): RedirectResponse
+    {
+        $this->authorizeOwnedPemesanan($pemesanan);
+        $request->validate(['catatan_admin' => ['nullable', 'string', 'max:1000']]);
+
+        $this->approvePemesanan($pemesanan, $request->catatan_admin);
+
+        return back()->with('success', 'Pemesanan diterima dan kamar berubah menjadi dipesan.');
+    }
+
+    public function penyediaReject(Request $request, Pemesanan $pemesanan): RedirectResponse
+    {
+        $this->authorizeOwnedPemesanan($pemesanan);
+        $request->validate(['catatan_admin' => ['required', 'string', 'max:1000']]);
+
+        $this->rejectPemesanan($pemesanan, $request->catatan_admin);
 
         return back()->with('success', 'Pemesanan ditolak.');
     }
@@ -164,5 +179,56 @@ class PemesananController extends Controller
     private function authorizePenyewa(Pemesanan $pemesanan): void
     {
         abort_unless($pemesanan->penyewa_id === auth()->user()->penyewa->id, 403);
+    }
+
+    private function approvePemesanan(Pemesanan $pemesanan, ?string $catatanAdmin = null): void
+    {
+        DB::transaction(function () use ($pemesanan, $catatanAdmin) {
+            $pemesanan->load('kamar');
+
+            abort_if($pemesanan->status_pemesanan !== Pemesanan::STATUS_MENUNGGU, 422, 'Pemesanan tidak bisa dikonfirmasi ulang.');
+            abort_if($pemesanan->kamar->status !== Kamar::STATUS_TERSEDIA, 422, 'Kamar sudah tidak tersedia.');
+
+            $pemesanan->update([
+                'status_pemesanan' => Pemesanan::STATUS_DITERIMA,
+                'catatan_admin' => $catatanAdmin,
+            ]);
+
+            $pemesanan->kamar->update(['status' => Kamar::STATUS_DIPESAN]);
+
+            PembayaranAwal::firstOrCreate(
+                ['pemesanan_id' => $pemesanan->id],
+                ['status_pembayaran' => PembayaranAwal::STATUS_BELUM_BAYAR]
+            );
+        });
+    }
+
+    private function rejectPemesanan(Pemesanan $pemesanan, string $catatanAdmin): void
+    {
+        DB::transaction(function () use ($pemesanan, $catatanAdmin) {
+            abort_if(! in_array($pemesanan->status_pemesanan, [Pemesanan::STATUS_MENUNGGU, Pemesanan::STATUS_DITERIMA], true), 422);
+
+            $pemesanan->load('kamar');
+            $pemesanan->update([
+                'status_pemesanan' => Pemesanan::STATUS_DITOLAK,
+                'catatan_admin' => $catatanAdmin,
+            ]);
+
+            if ($pemesanan->kamar->status === Kamar::STATUS_DIPESAN) {
+                $pemesanan->kamar->update(['status' => Kamar::STATUS_TERSEDIA]);
+            }
+        });
+    }
+
+    private function ownedKosIds(): array
+    {
+        return auth()->user()->penyediaKos?->kos()->pluck('id')->map(fn ($id) => (int) $id)->all() ?? [];
+    }
+
+    private function authorizeOwnedPemesanan(Pemesanan $pemesanan): void
+    {
+        $pemesanan->loadMissing('kamar');
+
+        abort_unless(in_array((int) $pemesanan->kamar->kos_id, $this->ownedKosIds(), true), 403);
     }
 }

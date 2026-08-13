@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\FasilitasController;
+use App\Http\Controllers\FavoritKamarController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KamarController;
 use App\Http\Controllers\KeluhanController;
@@ -11,9 +12,10 @@ use App\Http\Controllers\PembayaranBulananController;
 use App\Http\Controllers\PemesananController;
 use App\Http\Controllers\PenghuniController;
 use App\Http\Controllers\PenyediaDashboardController;
+use App\Http\Controllers\PenyediaKeuanganController;
+use App\Http\Controllers\PenyediaKosController;
 use App\Http\Controllers\PenyewaController;
 use App\Http\Controllers\PenyewaDashboardController;
-use App\Http\Controllers\FavoritKamarController;
 use App\Http\Controllers\PenyewaProfileController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TagihanBulananController;
@@ -36,6 +38,12 @@ Route::get('/dashboard', function () {
 
 Route::middleware(['auth', 'role:penyedia_kos'])->prefix('penyedia')->name('penyedia.')->group(function () {
     Route::get('/dashboard', PenyediaDashboardController::class)->name('dashboard');
+    Route::get('/kos', [PenyediaKosController::class, 'index'])->name('kos.index');
+    Route::get('/kos/create', [PenyediaKosController::class, 'create'])->name('kos.create');
+    Route::post('/kos', [PenyediaKosController::class, 'store'])->name('kos.store');
+    Route::get('/kos/{kos}/edit', [PenyediaKosController::class, 'edit'])->name('kos.edit');
+    Route::put('/kos/{kos}', [PenyediaKosController::class, 'update'])->name('kos.update');
+    Route::delete('/kos/{kos}', [PenyediaKosController::class, 'destroy'])->name('kos.destroy');
     Route::get('/kamar', [KamarController::class, 'penyediaIndex'])->name('kamar.index');
     Route::get('/kamar/create', [KamarController::class, 'penyediaCreate'])->name('kamar.create');
     Route::post('/kamar', [KamarController::class, 'penyediaStore'])->name('kamar.store');
@@ -43,6 +51,16 @@ Route::middleware(['auth', 'role:penyedia_kos'])->prefix('penyedia')->name('peny
     Route::get('/kamar/{kamar}/edit', [KamarController::class, 'penyediaEdit'])->name('kamar.edit');
     Route::put('/kamar/{kamar}', [KamarController::class, 'penyediaUpdate'])->name('kamar.update');
     Route::delete('/kamar/{kamar}', [KamarController::class, 'penyediaDestroy'])->name('kamar.destroy');
+    Route::get('/pemesanan', [PemesananController::class, 'penyediaIndex'])->name('pemesanan.index');
+    Route::get('/pemesanan/{pemesanan}', [PemesananController::class, 'penyediaShow'])->name('pemesanan.show');
+    Route::patch('/pemesanan/{pemesanan}/terima', [PemesananController::class, 'penyediaApprove'])->name('pemesanan.approve');
+    Route::patch('/pemesanan/{pemesanan}/tolak', [PemesananController::class, 'penyediaReject'])->name('pemesanan.reject');
+    Route::get('/keuangan', PenyediaKeuanganController::class)->name('keuangan.index');
+    Route::patch('/pembayaran-awal/{pembayaranAwal}/setujui', [PembayaranAwalController::class, 'penyediaApprove'])->name('pembayaran-awal.approve');
+    Route::patch('/pembayaran-awal/{pembayaranAwal}/tolak', [PembayaranAwalController::class, 'penyediaReject'])->name('pembayaran-awal.reject');
+    Route::patch('/pembayaran-bulanan/{pembayaranBulanan}/setujui', [PembayaranBulananController::class, 'penyediaApprove'])->name('pembayaran-bulanan.approve');
+    Route::patch('/pembayaran-bulanan/{pembayaranBulanan}/tolak', [PembayaranBulananController::class, 'penyediaReject'])->name('pembayaran-bulanan.reject');
+    Route::get('/pembayaran-bulanan/{pembayaranBulanan}/bukti', [PembayaranBulananController::class, 'receipt'])->name('pembayaran-bulanan.receipt');
 });
 
 Route::middleware('auth')->group(function () {

@@ -222,6 +222,176 @@ class KosManagementFlowTest extends TestCase
         $this->assertDatabaseHas('kamars', ['nama_kamar' => 'Kamar Penyedia', 'kos_id' => $ownedKos->id]);
     }
 
+    public function test_penyedia_can_manage_owned_kos_catalog(): void
+    {
+        $penyediaUser = User::create([
+            'name' => 'Pemilik Mandiri',
+            'email' => 'pemilik-mandiri@example.com',
+            'password' => Hash::make('password'),
+            'role' => User::ROLE_PENYEDIA_KOS,
+        ]);
+
+        $penyedia = PenyediaKos::create([
+            'user_id' => $penyediaUser->id,
+            'nama_lengkap' => 'Pemilik Mandiri',
+            'no_hp' => '082111111112',
+            'alamat' => 'Betung',
+        ]);
+
+        $otherKos = $this->kos();
+
+        $this->actingAs($penyediaUser)->get(route('penyedia.kos.index'))
+            ->assertOk()
+            ->assertDontSee($otherKos->nama_kos);
+
+        $this->actingAs($penyediaUser)->post(route('penyedia.kos.store'), [
+            'nama_kos' => 'Kos Mandiri Baru',
+            'alamat' => 'Jl. Mandiri Betung',
+            'kota' => 'Betung',
+            'deskripsi' => 'Kos baru yang didaftarkan langsung oleh pemilik.',
+            'status' => Kos::STATUS_AKTIF,
+            'is_promoted' => '1',
+        ])->assertRedirect(route('penyedia.kos.index', absolute: false));
+
+        $ownedKos = Kos::where('nama_kos', 'Kos Mandiri Baru')->firstOrFail();
+        $this->assertSame($penyedia->id, $ownedKos->penyedia_kos_id);
+
+        $this->actingAs($penyediaUser)->put(route('penyedia.kos.update', $ownedKos), [
+            'nama_kos' => 'Kos Mandiri Update',
+            'alamat' => 'Jl. Mandiri Betung Update',
+            'kota' => 'Betung',
+            'deskripsi' => 'Kos milik pemilik yang sudah diperbarui.',
+            'status' => Kos::STATUS_NONAKTIF,
+            'is_promoted' => '0',
+        ])->assertRedirect(route('penyedia.kos.index', absolute: false));
+
+        $this->assertDatabaseHas('kos', [
+            'id' => $ownedKos->id,
+            'nama_kos' => 'Kos Mandiri Update',
+            'status' => Kos::STATUS_NONAKTIF,
+        ]);
+
+        $this->actingAs($penyediaUser)->get(route('penyedia.kos.edit', $otherKos))
+            ->assertRedirect(route('dashboard', absolute: false))
+            ->assertSessionHas('error', 'Akses tidak diizinkan.');
+        $this->actingAs($penyediaUser)->delete(route('penyedia.kos.destroy', $ownedKos))->assertRedirect(route('penyedia.kos.index', absolute: false));
+        $this->assertDatabaseMissing('kos', ['id' => $ownedKos->id]);
+    }
+
+    public function test_penyedia_can_process_owned_bookings_and_incoming_payments(): void
+    {
+        $penyediaUser = User::create([
+            'name' => 'Penyedia Transaksi',
+            'email' => 'penyedia-transaksi@example.com',
+            'password' => Hash::make('password'),
+            'role' => User::ROLE_PENYEDIA_KOS,
+        ]);
+
+        $penyedia = PenyediaKos::create([
+            'user_id' => $penyediaUser->id,
+            'nama_lengkap' => 'Penyedia Transaksi',
+            'no_hp' => '082111111113',
+            'alamat' => 'Betung',
+        ]);
+
+        [$penyewaUser, $penyewa] = $this->penyewaUser();
+
+        $ownedKos = Kos::create([
+            'penyedia_kos_id' => $penyedia->id,
+            'nama_kos' => 'Kos Transaksi Milik',
+            'alamat' => 'Jl. Transaksi',
+            'kota' => 'Betung',
+            'deskripsi' => 'Kos untuk transaksi penyedia.',
+            'status' => Kos::STATUS_AKTIF,
+        ]);
+
+        $ownedKamar = Kamar::create([
+            'kos_id' => $ownedKos->id,
+            'nama_kamar' => 'Kamar Transaksi A1',
+            'tipe_kamar' => 'Standar',
+            'harga_bulanan' => 800000,
+            'deskripsi' => 'Kamar untuk transaksi penyedia.',
+            'status' => Kamar::STATUS_TERSEDIA,
+        ]);
+
+        $pemesanan = Pemesanan::create([
+            'penyewa_id' => $penyewa->id,
+            'kamar_id' => $ownedKamar->id,
+            'tanggal_pesan' => today(),
+            'tanggal_masuk' => now()->addDay(),
+            'status_pemesanan' => Pemesanan::STATUS_MENUNGGU,
+        ]);
+
+        $otherKos = $this->kos();
+        $otherKamar = Kamar::create([
+            'kos_id' => $otherKos->id,
+            'nama_kamar' => 'Kamar Transaksi Lain',
+            'tipe_kamar' => 'Standar',
+            'harga_bulanan' => 700000,
+            'deskripsi' => 'Kamar milik penyedia lain.',
+            'status' => Kamar::STATUS_TERSEDIA,
+        ]);
+        $otherPemesanan = Pemesanan::create([
+            'penyewa_id' => $penyewa->id,
+            'kamar_id' => $otherKamar->id,
+            'tanggal_pesan' => today(),
+            'tanggal_masuk' => now()->addDay(),
+            'status_pemesanan' => Pemesanan::STATUS_MENUNGGU,
+        ]);
+
+        $this->actingAs($penyediaUser)->get(route('penyedia.pemesanan.index'))
+            ->assertOk()
+            ->assertSee('Kamar Transaksi A1')
+            ->assertDontSee('Kamar Transaksi Lain');
+
+        $this->actingAs($penyediaUser)->patch(route('penyedia.pemesanan.approve', $otherPemesanan))
+            ->assertRedirect(route('dashboard', absolute: false))
+            ->assertSessionHas('error', 'Akses tidak diizinkan.');
+        $this->actingAs($penyediaUser)->patch(route('penyedia.pemesanan.approve', $pemesanan), [
+            'catatan_admin' => 'Silakan bayar DP.',
+        ])->assertRedirect();
+
+        $this->assertSame(Pemesanan::STATUS_DITERIMA, $pemesanan->fresh()->status_pemesanan);
+        $this->assertDatabaseHas('pembayaran_awals', [
+            'pemesanan_id' => $pemesanan->id,
+            'status_pembayaran' => PembayaranAwal::STATUS_BELUM_BAYAR,
+        ]);
+
+        $dp = $pemesanan->pembayaranAwal()->firstOrFail();
+        $dp->update([
+            'jumlah_bayar' => 800000,
+            'tanggal_bayar' => today(),
+            'bukti_bayar' => 'pembayaran-awal/dp.pdf',
+            'status_pembayaran' => PembayaranAwal::STATUS_MENUNGGU,
+        ]);
+
+        $this->actingAs($penyediaUser)->get(route('penyedia.keuangan.index'))
+            ->assertOk()
+            ->assertSee('Kos Transaksi Milik')
+            ->assertSee('Rp 800.000');
+
+        $this->actingAs($penyediaUser)->patch(route('penyedia.pembayaran-awal.approve', $dp))->assertRedirect();
+        $this->assertSame(PembayaranAwal::STATUS_LUNAS, $dp->fresh()->status_pembayaran);
+        $this->assertDatabaseHas('penghunis', [
+            'penyewa_id' => $penyewa->id,
+            'kamar_id' => $ownedKamar->id,
+            'status_penghuni' => Penghuni::STATUS_AKTIF,
+        ]);
+
+        $tagihan = TagihanBulanan::firstOrFail();
+        $pembayaranBulanan = PembayaranBulanan::create([
+            'tagihan_bulanan_id' => $tagihan->id,
+            'tanggal_bayar' => today(),
+            'jumlah_bayar' => $tagihan->jumlah_tagihan,
+            'bukti_bayar' => 'pembayaran-bulanan/bulanan.pdf',
+            'status_pembayaran' => PembayaranBulanan::STATUS_MENUNGGU,
+        ]);
+
+        $this->actingAs($penyediaUser)->patch(route('penyedia.pembayaran-bulanan.approve', $pembayaranBulanan))->assertRedirect();
+        $this->assertSame(PembayaranBulanan::STATUS_LUNAS, $pembayaranBulanan->fresh()->status_pembayaran);
+        $this->assertSame(TagihanBulanan::STATUS_LUNAS, $tagihan->fresh()->status_tagihan);
+    }
+
     public function test_booking_dp_monthly_payment_and_complaint_flow(): void
     {
         Storage::fake('public');

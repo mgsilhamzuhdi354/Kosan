@@ -6,7 +6,7 @@
             <label class="text-sm font-bold">Kos</label>
             <select name="kos_id" class="mt-1 w-full rounded-2xl border-slate-300" required>
                 @foreach ($kosOptions as $kos)
-                    <option value="{{ $kos->id }}" @selected(old('kos_id', $kamar->kos_id) == $kos->id)>{{ $kos->nama_kos }}</option>
+                    <option value="{{ $kos->id }}" @selected(old('kos_id', request('kos_id', $kamar->kos_id)) == $kos->id)>{{ $kos->nama_kos }}</option>
                 @endforeach
             </select>
         </div>

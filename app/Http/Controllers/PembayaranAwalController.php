@@ -84,6 +84,43 @@ class PembayaranAwalController extends Controller
 
     public function approve(PembayaranAwal $pembayaranAwal): RedirectResponse
     {
+        $this->approvePayment($pembayaranAwal);
+
+        return back()->with('success', 'Pembayaran awal disetujui. Penyewa menjadi penghuni aktif.');
+    }
+
+    public function reject(Request $request, PembayaranAwal $pembayaranAwal): RedirectResponse
+    {
+        $data = $request->validate(['catatan_admin' => ['required', 'string', 'max:1000']]);
+        $this->rejectPayment($pembayaranAwal, $data['catatan_admin']);
+
+        return back()->with('success', 'Pembayaran awal ditolak.');
+    }
+
+    public function penyediaApprove(PembayaranAwal $pembayaranAwal): RedirectResponse
+    {
+        $this->authorizeOwnedPembayaran($pembayaranAwal);
+        $this->approvePayment($pembayaranAwal);
+
+        return back()->with('success', 'Pembayaran awal disetujui. Penyewa menjadi penghuni aktif.');
+    }
+
+    public function penyediaReject(Request $request, PembayaranAwal $pembayaranAwal): RedirectResponse
+    {
+        $this->authorizeOwnedPembayaran($pembayaranAwal);
+        $data = $request->validate(['catatan_admin' => ['required', 'string', 'max:1000']]);
+        $this->rejectPayment($pembayaranAwal, $data['catatan_admin']);
+
+        return back()->with('success', 'Pembayaran awal ditolak.');
+    }
+
+    private function authorizePenyewa(Pemesanan $pemesanan): void
+    {
+        abort_unless($pemesanan->penyewa_id === auth()->user()->penyewa->id, 403);
+    }
+
+    private function approvePayment(PembayaranAwal $pembayaranAwal): void
+    {
         DB::transaction(function () use ($pembayaranAwal) {
             $pembayaranAwal->load('pemesanan.kamar', 'pemesanan.penyewa');
 
@@ -127,26 +164,23 @@ class PembayaranAwalController extends Controller
                 ]
             );
         });
-
-        return back()->with('success', 'Pembayaran awal disetujui. Penyewa menjadi penghuni aktif.');
     }
 
-    public function reject(Request $request, PembayaranAwal $pembayaranAwal): RedirectResponse
+    private function rejectPayment(PembayaranAwal $pembayaranAwal, string $catatanAdmin): void
     {
         abort_if($pembayaranAwal->status_pembayaran !== PembayaranAwal::STATUS_MENUNGGU, 422);
 
-        $data = $request->validate(['catatan_admin' => ['required', 'string', 'max:1000']]);
-
         $pembayaranAwal->update([
             'status_pembayaran' => PembayaranAwal::STATUS_DITOLAK,
-            'catatan_admin' => $data['catatan_admin'],
+            'catatan_admin' => $catatanAdmin,
         ]);
-
-        return back()->with('success', 'Pembayaran awal ditolak.');
     }
 
-    private function authorizePenyewa(Pemesanan $pemesanan): void
+    private function authorizeOwnedPembayaran(PembayaranAwal $pembayaranAwal): void
     {
-        abort_unless($pemesanan->penyewa_id === auth()->user()->penyewa->id, 403);
+        $pembayaranAwal->loadMissing('pemesanan.kamar');
+        $kosIds = auth()->user()->penyediaKos?->kos()->pluck('id')->map(fn ($id) => (int) $id)->all() ?? [];
+
+        abort_unless(in_array((int) $pembayaranAwal->pemesanan->kamar->kos_id, $kosIds, true), 403);
     }
 }

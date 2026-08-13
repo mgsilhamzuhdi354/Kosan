@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Kamar;
 use App\Models\PembayaranAwal;
+use App\Models\PembayaranBulanan;
 use App\Models\Pemesanan;
 use Illuminate\View\View;
 
@@ -24,6 +25,12 @@ class PenyediaDashboardController extends Controller
             'dp_menunggu' => PembayaranAwal::whereHas('pemesanan.kamar', fn ($query) => $query->whereIn('kos_id', $kosIds))
                 ->where('status_pembayaran', PembayaranAwal::STATUS_MENUNGGU)
                 ->count(),
+            'uang_masuk' => PembayaranAwal::whereHas('pemesanan.kamar', fn ($query) => $query->whereIn('kos_id', $kosIds))
+                ->where('status_pembayaran', PembayaranAwal::STATUS_LUNAS)
+                ->sum('jumlah_bayar')
+                + PembayaranBulanan::whereHas('tagihanBulanan.penghuni.kamar', fn ($query) => $query->whereIn('kos_id', $kosIds))
+                    ->where('status_pembayaran', PembayaranBulanan::STATUS_LUNAS)
+                    ->sum('jumlah_bayar'),
         ];
 
         $kos = $penyedia->kos;
