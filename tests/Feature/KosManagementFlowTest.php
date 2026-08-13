@@ -14,6 +14,7 @@ use App\Models\PenyediaKos;
 use App\Models\Penyewa;
 use App\Models\TagihanBulanan;
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\KostAssetSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -687,6 +688,31 @@ class KosManagementFlowTest extends TestCase
             ->assertSee('Pilihan kost dari beberapa penyedia')
             ->assertSee('Asri Kost')
             ->assertSee('Permata Kost');
+    }
+
+    public function test_database_seeder_can_be_repeated_without_duplicate_demo_data(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $counts = [
+            'users' => User::count(),
+            'penyedia_kos' => PenyediaKos::count(),
+            'penyewas' => Penyewa::count(),
+            'kos' => Kos::count(),
+            'kamars' => Kamar::count(),
+            'fasilitas' => Fasilitas::count(),
+        ];
+
+        $this->seed(DatabaseSeeder::class);
+
+        $this->assertSame($counts['users'], User::count());
+        $this->assertSame($counts['penyedia_kos'], PenyediaKos::count());
+        $this->assertSame($counts['penyewas'], Penyewa::count());
+        $this->assertSame($counts['kos'], Kos::count());
+        $this->assertSame($counts['kamars'], Kamar::count());
+        $this->assertSame($counts['fasilitas'], Fasilitas::count());
+        $this->assertDatabaseHas('users', ['email' => 'admin@kos.com', 'role' => User::ROLE_ADMIN]);
+        $this->assertDatabaseHas('users', ['email' => 'penyedia@kos.com', 'role' => User::ROLE_PENYEDIA_KOS]);
     }
 
     private function adminUser(): User
