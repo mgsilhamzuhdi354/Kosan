@@ -915,6 +915,13 @@ class KosManagementFlowTest extends TestCase
             ->assertSee('Status keluhan: Baru, Diproses, dan Selesai. Data pada laporan merupakan data contoh/dummy untuk kebutuhan sistem.');
 
         $this->actingAs(User::where('email', 'admin@kos.com')->first())
+            ->get(route('admin.laporan.index'))
+            ->assertOk()
+            ->assertSee('LAPORAN DATA KELUHAN KOS')
+            ->assertSee('ID Keluhan')
+            ->assertSee('ID Penyewa');
+
+        $this->actingAs(User::where('email', 'admin@kos.com')->first())
             ->get(route('admin.laporan.pdf', 'keluhan'))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
