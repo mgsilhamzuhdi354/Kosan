@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminUserAccountController;
 use App\Http\Controllers\FasilitasController;
 use App\Http\Controllers\FavoritKamarController;
 use App\Http\Controllers\HomeController;
@@ -77,6 +78,8 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+    Route::get('/akun', [AdminUserAccountController::class, 'index'])->name('akun.index');
+    Route::patch('/akun/{user}/reset-password', [AdminUserAccountController::class, 'resetPassword'])->name('akun.reset-password');
     Route::resource('kamar', KamarController::class);
     Route::resource('fasilitas', FasilitasController::class)->except(['show'])->parameters(['fasilitas' => 'fasilitas']);
     Route::get('/penyewa', [PenyewaController::class, 'index'])->name('penyewa.index');

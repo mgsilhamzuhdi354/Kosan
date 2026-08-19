@@ -15,6 +15,7 @@
             ['label' => 'Dashboard', 'route' => 'admin.dashboard'],
             ['label' => 'Data Kamar', 'route' => 'admin.kamar.index'],
             ['label' => 'Fasilitas', 'route' => 'admin.fasilitas.index'],
+            ['label' => 'Akun Pengguna', 'route' => 'admin.akun.index'],
             ['label' => 'Data Penyewa', 'route' => 'admin.penyewa.index'],
             ['label' => 'Pemesanan', 'route' => 'admin.pemesanan.index'],
             ['label' => 'Pembayaran Awal', 'route' => 'admin.pembayaran-awal.index'],

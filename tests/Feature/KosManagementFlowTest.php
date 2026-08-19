@@ -141,6 +141,55 @@ class KosManagementFlowTest extends TestCase
         $this->assertDatabaseHas('kamar_fasilitas', ['fasilitas_id' => $fasilitas->id]);
     }
 
+    public function test_admin_can_view_accounts_and_reset_user_passwords(): void
+    {
+        $admin = $this->adminUser();
+        [$penyewaUser, $penyewa] = $this->penyewaUser();
+
+        $penyediaUser = User::create([
+            'name' => 'Pemilik Akun',
+            'email' => 'pemilik-akun@example.com',
+            'password' => Hash::make('password'),
+            'role' => User::ROLE_PENYEDIA_KOS,
+        ]);
+
+        $penyedia = PenyediaKos::create([
+            'user_id' => $penyediaUser->id,
+            'nama_lengkap' => 'Pemilik Akun',
+            'no_hp' => '082111111116',
+            'alamat' => 'Betung',
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.akun.index'))
+            ->assertOk()
+            ->assertSee('#'.$penyewaUser->id)
+            ->assertSee('#'.$penyewa->id)
+            ->assertSee($penyewaUser->email)
+            ->assertSee('#'.$penyediaUser->id)
+            ->assertSee('#'.$penyedia->id)
+            ->assertSee($penyediaUser->email)
+            ->assertSee('Terenkripsi')
+            ->assertDontSee($penyewaUser->password);
+
+        $response = $this->actingAs($admin)->patch(route('admin.akun.reset-password', $penyewaUser));
+
+        $response->assertRedirect()
+            ->assertSessionHas('temporary_password');
+
+        $temporary = session('temporary_password');
+
+        $this->assertSame($penyewaUser->email, $temporary['email']);
+        $this->assertTrue(Hash::check($temporary['password'], $penyewaUser->fresh()->password));
+
+        $adminPassword = $admin->password;
+
+        $this->actingAs($admin)->patch(route('admin.akun.reset-password', $admin))
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Password admin tidak bisa direset dari halaman ini.');
+
+        $this->assertSame($adminPassword, $admin->fresh()->password);
+    }
+
     public function test_room_name_is_unique_per_kos_not_globally(): void
     {
         $admin = $this->adminUser();

@@ -185,6 +185,7 @@ async function loadTargets() {
     { viewport: 'web', role: 'admin', name: 'admin-dashboard', url: '/admin/dashboard' },
     { viewport: 'web', role: 'admin', name: 'admin-kamar', url: '/admin/kamar' },
     { viewport: 'web', role: 'admin', name: 'admin-fasilitas', url: '/admin/fasilitas' },
+    { viewport: 'web', role: 'admin', name: 'admin-akun-pengguna', url: '/admin/akun' },
     { viewport: 'web', role: 'admin', name: 'admin-penyewa', url: '/admin/penyewa' },
     { viewport: 'web', role: 'admin', name: 'admin-pemesanan', url: '/admin/pemesanan' },
     { viewport: 'web', role: 'admin', name: 'admin-pembayaran-awal', url: '/admin/pembayaran-awal' },
