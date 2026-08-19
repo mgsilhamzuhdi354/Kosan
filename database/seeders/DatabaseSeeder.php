@@ -54,12 +54,22 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $penyedia->kos()
+            ->whereIn('nama_kos', [
+                'kost banyuasin',
+                'Kos Putri Damai',
+                'Kos Exclusive Gejayan Betung',
+                'Kos Nyaman Setu',
+            ])
+            ->update(['status' => Kos::STATUS_NONAKTIF]);
+
         $kosUtama = Kos::updateOrCreate(
             ['penyedia_kos_id' => $penyedia->id, 'nama_kos' => config('app.name')],
             [
                 'alamat' => 'Jl. Lintas Betung, Banyuasin',
                 'kota' => 'Betung',
                 'deskripsi' => 'Kos putri nyaman dengan akses mudah, kamar bersih, dan pengelolaan digital.',
+                'foto' => 'assets/kos-putri/utama-betung.jpeg',
                 'latitude' => -2.8836,
                 'longitude' => 104.2169,
                 'status' => Kos::STATUS_AKTIF,
@@ -68,15 +78,16 @@ class DatabaseSeeder extends Seeder
         );
 
         $kosTambahan = collect([
-            ['Kos Putri Harmoni', 'Jl. Serasi Betung, Banyuasin', -2.8798, 104.2212, true],
-            ['Kos Putri Exclusive Betung', 'Jl. Palembang Betung No. 22', -2.8912, 104.2098, false],
-            ['Kos Putri Nyaman Setu', 'Jl. Setu Raya Betung', -2.8724, 104.2305, true],
+            ['Kos Putri Harmoni', 'Jl. Serasi Betung, Banyuasin', -2.8798, 104.2212, true, 'assets/kos-putri/harmoni.jpeg'],
+            ['Kos Putri Exclusive Betung', 'Jl. Palembang Betung No. 22', -2.8912, 104.2098, false, 'assets/kos-putri/exclusive-betung.jpeg'],
+            ['Kos Putri Nyaman Setu', 'Jl. Setu Raya Betung', -2.8724, 104.2305, true, 'assets/kos-putri/nyaman-setu.jpeg'],
         ])->map(fn ($item) => Kos::updateOrCreate(
             ['penyedia_kos_id' => $penyedia->id, 'nama_kos' => $item[0]],
             [
                 'alamat' => $item[1],
                 'kota' => 'Betung',
-                    'deskripsi' => 'Pilihan kos putri nyaman dengan fasilitas lengkap untuk demo pencarian lokasi.',
+                'deskripsi' => 'Pilihan kos putri nyaman dengan fasilitas lengkap untuk demo pencarian lokasi.',
+                'foto' => $item[5],
                 'latitude' => $item[2],
                 'longitude' => $item[3],
                 'status' => Kos::STATUS_AKTIF,
@@ -115,12 +126,12 @@ class DatabaseSeeder extends Seeder
             ->map(fn ($nama) => Fasilitas::firstOrCreate(['penyedia_kos_id' => null, 'nama_fasilitas' => $nama]));
 
         $kamarData = [
-            ['Kamar A1', 'Standar', 750000, Kamar::STATUS_TERSEDIA],
-            ['Kamar A2', 'Standar', 800000, Kamar::STATUS_TERSEDIA],
-            ['Kamar A3', 'Deluxe', 950000, Kamar::STATUS_DIPESAN],
-            ['Kamar B1', 'Deluxe', 1000000, Kamar::STATUS_TERISI],
-            ['Kamar B2', 'Standar', 700000, Kamar::STATUS_MAINTENANCE],
-            ['Kamar B3', 'Premium', 1200000, Kamar::STATUS_TERSEDIA],
+            ['Kamar A1', 'Standar', 750000, Kamar::STATUS_TERSEDIA, 'assets/kamar/utama-a1.jpeg'],
+            ['Kamar A2', 'Standar', 800000, Kamar::STATUS_TERSEDIA, 'assets/kamar/utama-a2.jpeg'],
+            ['Kamar A3', 'Deluxe', 950000, Kamar::STATUS_DIPESAN, 'assets/kamar/utama-a3.jpeg'],
+            ['Kamar B1', 'Deluxe', 1000000, Kamar::STATUS_TERISI, 'assets/kamar/utama-b1.jpeg'],
+            ['Kamar B2', 'Standar', 700000, Kamar::STATUS_MAINTENANCE, 'assets/kamar/utama-b2.jpeg'],
+            ['Kamar B3', 'Premium', 1200000, Kamar::STATUS_TERSEDIA, 'assets/kamar/utama-b3.jpeg'],
         ];
 
         $allKos = collect([$kosUtama])->merge($kosTambahan);
@@ -133,6 +144,7 @@ class DatabaseSeeder extends Seeder
                     'tipe_kamar' => $item[1],
                     'harga_bulanan' => $item[2],
                     'status' => $item[3],
+                    'foto' => $item[4],
                     'deskripsi' => 'Kamar nyaman, bersih, dan cocok untuk penghuni yang membutuhkan lingkungan kos yang tertata.',
                 ]
             );

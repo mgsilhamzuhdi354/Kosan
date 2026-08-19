@@ -805,6 +805,18 @@ class KosManagementFlowTest extends TestCase
         $this->assertSame($counts['fasilitas'], Fasilitas::count());
         $this->assertDatabaseHas('users', ['email' => 'admin@kos.com', 'role' => User::ROLE_ADMIN]);
         $this->assertDatabaseHas('users', ['email' => 'penyedia@kos.com', 'role' => User::ROLE_PENYEDIA_KOS]);
+
+        $activeKosFotos = Kos::where('status', Kos::STATUS_AKTIF)->pluck('foto')->filter()->values();
+        $activeKamarFotos = Kamar::whereHas('kos', fn ($query) => $query->where('status', Kos::STATUS_AKTIF))
+            ->pluck('foto')
+            ->filter()
+            ->values();
+
+        $this->assertSame(Kos::where('status', Kos::STATUS_AKTIF)->count(), $activeKosFotos->count());
+        $this->assertSame($activeKosFotos->count(), $activeKosFotos->unique()->count());
+        $this->assertSame(Kamar::whereHas('kos', fn ($query) => $query->where('status', Kos::STATUS_AKTIF))->count(), $activeKamarFotos->count());
+        $this->assertSame($activeKamarFotos->count(), $activeKamarFotos->unique()->count());
+        $this->assertEmpty($activeKosFotos->intersect($activeKamarFotos)->all());
     }
 
     private function adminUser(): User
