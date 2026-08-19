@@ -104,42 +104,49 @@
 
                 <div class="mobile-safe-scroll overflow-x-auto">
                     @if ($type === 'keluhan')
-                        <table class="w-full min-w-[1120px] text-left text-sm">
-                            <thead>
-                                <tr class="text-xs font-black uppercase tracking-wide text-slate-500">
-                                    <th class="px-4 py-4">No</th>
-                                    <th class="px-4 py-4">ID Keluhan</th>
-                                    <th class="px-4 py-4">ID Penyewa</th>
-                                    <th class="px-4 py-4">Nama Penyewa</th>
-                                    <th class="px-4 py-4">Nama Kos</th>
-                                    <th class="px-4 py-4">Kamar</th>
-                                    <th class="px-4 py-4">Tanggal</th>
-                                    <th class="px-4 py-4">Kategori</th>
-                                    <th class="px-4 py-4">Keluhan</th>
-                                    <th class="px-4 py-4">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($rows as $row)
-                                    <tr>
-                                        <td class="px-4 py-4 font-bold">{{ $loop->iteration }}</td>
-                                        <td class="px-4 py-4 font-extrabold">{{ $row->kode_keluhan ?: '-' }}</td>
-                                        <td class="px-4 py-4">{{ $row->penghuni->penyewa->kode_penyewa ?: '-' }}</td>
-                                        <td class="px-4 py-4 font-extrabold">{{ $row->penghuni->penyewa->nama_lengkap }}</td>
-                                        <td class="px-4 py-4">{{ $row->penghuni->kamar->kos?->nama_kos ?: '-' }}</td>
-                                        <td class="px-4 py-4">{{ $row->penghuni->kamar->nama_kamar }}</td>
-                                        <td class="px-4 py-4">{{ $row->created_at->format('d/m/Y') }}</td>
-                                        <td class="px-4 py-4">{{ $row->kategori }}</td>
-                                        <td class="px-4 py-4 text-slate-600">{{ $row->judul }}</td>
-                                        <td class="px-4 py-4"><span class="status-badge">{{ $row->status_label }}</span></td>
+                        <div class="min-w-[1120px] bg-white px-6 py-6 text-center text-black">
+                            <h1 class="text-2xl font-black uppercase tracking-normal">LAPORAN DATA KELUHAN KOS</h1>
+                            <p class="mt-1 text-sm">Periode: Mei-Agustus 2026</p>
+
+                            <table class="mt-4 w-full border-collapse text-center text-[11px] text-black">
+                                <thead>
+                                    <tr class="bg-[#d9d9d9] font-black">
+                                        <th class="border border-black px-2 py-2">No</th>
+                                        <th class="border border-black px-2 py-2">ID Keluhan</th>
+                                        <th class="border border-black px-2 py-2">ID Penyewa</th>
+                                        <th class="border border-black px-2 py-2">Nama Penyewa</th>
+                                        <th class="border border-black px-2 py-2">Nama Kos</th>
+                                        <th class="border border-black px-2 py-2">Kamar</th>
+                                        <th class="border border-black px-2 py-2">Tanggal</th>
+                                        <th class="border border-black px-2 py-2">Kategori</th>
+                                        <th class="border border-black px-2 py-2">Keluhan</th>
+                                        <th class="border border-black px-2 py-2">Status</th>
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="10" class="px-5 py-8 text-center text-slate-500">Tidak ada data sesuai filter.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @forelse ($rows as $row)
+                                        <tr>
+                                            <td class="border border-black px-2 py-2">{{ $loop->iteration }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->kode_keluhan ?: '-' }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->penghuni->penyewa->kode_penyewa ?: '-' }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->penghuni->penyewa->nama_lengkap }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->penghuni->kamar->kos?->nama_kos ?: '-' }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->penghuni->kamar->nama_kamar }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->created_at->format('d/m/Y') }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->kategori }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->judul }}</td>
+                                            <td class="border border-black px-2 py-2">{{ $row->status_label }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="10" class="border border-black px-2 py-4">Tidak ada data sesuai filter.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+
+                            <p class="mt-2 text-left text-xs">Status keluhan: Baru, Diproses, dan Selesai. Data pada laporan merupakan data contoh/dummy untuk kebutuhan sistem.</p>
+                        </div>
                     @else
                         <table class="w-full min-w-[760px] text-left text-sm">
                             <thead>

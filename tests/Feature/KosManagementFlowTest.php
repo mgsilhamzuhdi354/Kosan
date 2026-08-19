@@ -884,6 +884,26 @@ class KosManagementFlowTest extends TestCase
             'status_keluhan' => Keluhan::STATUS_DIKIRIM,
         ]);
 
+        $complaintRows = Keluhan::with(['penghuni.penyewa', 'penghuni.kamar.kos'])
+            ->whereNotNull('kode_keluhan')
+            ->orderBy('created_at')
+            ->orderBy('kode_keluhan')
+            ->get()
+            ->map(fn (Keluhan $keluhan) => [
+                'id_keluhan' => $keluhan->kode_keluhan,
+                'id_penyewa' => $keluhan->penghuni->penyewa->kode_penyewa,
+                'nama_penyewa' => $keluhan->penghuni->penyewa->nama_lengkap,
+                'nama_kos' => $keluhan->penghuni->kamar->kos->nama_kos,
+                'kamar' => $keluhan->penghuni->kamar->nama_kamar,
+                'tanggal' => $keluhan->created_at->format('d/m/Y'),
+                'kategori' => $keluhan->kategori,
+                'keluhan' => $keluhan->judul,
+                'status' => $keluhan->status_label,
+            ])
+            ->all();
+
+        $this->assertSame($this->expectedComplaintReportRows(), $complaintRows);
+
         $this->actingAs(User::where('email', 'admin@kos.com')->first())
             ->get(route('admin.laporan.index', 'keluhan'))
             ->assertOk()
@@ -891,12 +911,39 @@ class KosManagementFlowTest extends TestCase
             ->assertSee('P001')
             ->assertSee('Kos Pondok Aer')
             ->assertSee('Lampu kamar berkedip')
-            ->assertSee('Baru');
+            ->assertSee('Baru')
+            ->assertSee('Status keluhan: Baru, Diproses, dan Selesai. Data pada laporan merupakan data contoh/dummy untuk kebutuhan sistem.');
 
         $this->actingAs(User::where('email', 'admin@kos.com')->first())
             ->get(route('admin.laporan.pdf', 'keluhan'))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
+    }
+
+    private function expectedComplaintReportRows(): array
+    {
+        return [
+            ['id_keluhan' => 'K001', 'id_penyewa' => 'P001', 'nama_penyewa' => 'Nadia Putri', 'nama_kos' => 'Kos Pondok Aer', 'kamar' => 'A3', 'tanggal' => '12/05/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Area dapur perlu dibersihkan', 'status' => 'Diproses'],
+            ['id_keluhan' => 'K002', 'id_penyewa' => 'P002', 'nama_penyewa' => 'Siti Aminah', 'nama_kos' => 'Permata Kos', 'kamar' => 'B1', 'tanggal' => '14/05/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Lampu kamar mati', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K003', 'id_penyewa' => 'P003', 'nama_penyewa' => 'Andi Saputra', 'nama_kos' => 'Asri Kos', 'kamar' => 'A2', 'tanggal' => '18/05/2026', 'kategori' => 'Air', 'keluhan' => 'Air kamar mandi tidak mengalir', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K004', 'id_penyewa' => 'P004', 'nama_penyewa' => 'Rina Oktavia', 'nama_kos' => 'Citra Kos', 'kamar' => 'B2', 'tanggal' => '22/05/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Kipas angin tidak berfungsi', 'status' => 'Diproses'],
+            ['id_keluhan' => 'K005', 'id_penyewa' => 'P005', 'nama_penyewa' => 'Dimas Pratama', 'nama_kos' => 'D Kost', 'kamar' => 'C1', 'tanggal' => '03/06/2026', 'kategori' => 'Keamanan', 'keluhan' => 'Kunci pintu kamar sulit digunakan', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K006', 'id_penyewa' => 'P006', 'nama_penyewa' => 'Fitri Lestari', 'nama_kos' => 'Eka Kost', 'kamar' => 'C2', 'tanggal' => '07/06/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Sampah di area belakang belum diangkut', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K007', 'id_penyewa' => 'P007', 'nama_penyewa' => 'Reza Maulana', 'nama_kos' => 'Cahaya Kost', 'kamar' => 'A1', 'tanggal' => '11/06/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Wi-Fi tidak dapat digunakan', 'status' => 'Diproses'],
+            ['id_keluhan' => 'K008', 'id_penyewa' => 'P008', 'nama_penyewa' => 'Ayu Permata', 'nama_kos' => 'Mulia Kos', 'kamar' => 'B3', 'tanggal' => '16/06/2026', 'kategori' => 'Air', 'keluhan' => 'Keran kamar mandi bocor', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K009', 'id_penyewa' => 'P009', 'nama_penyewa' => 'Fajar Ramadhan', 'nama_kos' => 'Kos Damai', 'kamar' => 'C3', 'tanggal' => '21/06/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Kamar mandi bersama kurang bersih', 'status' => 'Diproses'],
+            ['id_keluhan' => 'K010', 'id_penyewa' => 'P010', 'nama_penyewa' => 'Salsabila Putri', 'nama_kos' => 'Indah Kos', 'kamar' => 'D1', 'tanggal' => '02/07/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Stop kontak kamar rusak', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K011', 'id_penyewa' => 'P011', 'nama_penyewa' => 'Muhammad Rizky', 'nama_kos' => 'Rans Kos', 'kamar' => 'D2', 'tanggal' => '06/07/2026', 'kategori' => 'Keamanan', 'keluhan' => 'Lampu halaman depan mati', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K012', 'id_penyewa' => 'P012', 'nama_penyewa' => 'Intan Permata', 'nama_kos' => 'Kos Pondok Aer', 'kamar' => 'A1', 'tanggal' => '11/07/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Tempat sampah penuh', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K013', 'id_penyewa' => 'P013', 'nama_penyewa' => 'Yoga Pratama', 'nama_kos' => 'Permata Kos', 'kamar' => 'B2', 'tanggal' => '16/07/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Lemari kamar rusak', 'status' => 'Diproses'],
+            ['id_keluhan' => 'K014', 'id_penyewa' => 'P014', 'nama_penyewa' => 'Desi Anggraini', 'nama_kos' => 'Asri Kos', 'kamar' => 'A3', 'tanggal' => '21/07/2026', 'kategori' => 'Air', 'keluhan' => 'Air keran kecil', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K015', 'id_penyewa' => 'P015', 'nama_penyewa' => 'Bagas Aditya', 'nama_kos' => 'Citra Kos', 'kamar' => 'C1', 'tanggal' => '26/07/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Area parkir kotor', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K016', 'id_penyewa' => 'P016', 'nama_penyewa' => 'Putri Amelia', 'nama_kos' => 'D Kost', 'kamar' => 'D2', 'tanggal' => '02/08/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'AC kurang dingin', 'status' => 'Diproses'],
+            ['id_keluhan' => 'K017', 'id_penyewa' => 'P017', 'nama_penyewa' => 'Aldi Kurniawan', 'nama_kos' => 'Eka Kost', 'kamar' => 'A2', 'tanggal' => '06/08/2026', 'kategori' => 'Keamanan', 'keluhan' => 'Pintu gerbang sulit dikunci', 'status' => 'Diproses'],
+            ['id_keluhan' => 'K018', 'id_penyewa' => 'P018', 'nama_penyewa' => 'Nabila Sari', 'nama_kos' => 'Cahaya Kost', 'kamar' => 'B1', 'tanggal' => '11/08/2026', 'kategori' => 'Internet', 'keluhan' => 'Koneksi Wi-Fi lambat', 'status' => 'Selesai'],
+            ['id_keluhan' => 'K019', 'id_penyewa' => 'P019', 'nama_penyewa' => 'Arif Hidayat', 'nama_kos' => 'Mulia Kos', 'kamar' => 'C2', 'tanggal' => '16/08/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Saluran pembuangan tersumbat', 'status' => 'Diproses'],
+            ['id_keluhan' => 'K020', 'id_penyewa' => 'P020', 'nama_penyewa' => 'Tiara Anjani', 'nama_kos' => 'Kos Damai', 'kamar' => 'D1', 'tanggal' => '18/08/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Lampu kamar berkedip', 'status' => 'Baru'],
+        ];
     }
 
     private function adminUser(): User

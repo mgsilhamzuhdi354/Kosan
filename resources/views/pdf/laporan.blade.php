@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <title>{{ $title }}</title>
     <style>
+        @page { margin: 24px 28px; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #111827; }
         h1 { font-size: 18px; margin: 0; }
         .meta { margin-top: 6px; color: #4b5563; }
@@ -16,9 +17,59 @@
         .summary .label { color: #4b5563; font-size: 9px; text-transform: uppercase; }
         .summary .value { margin-top: 3px; font-size: 13px; font-weight: bold; }
         .sign { margin-top: 45px; width: 220px; float: right; text-align: center; }
+        .complaint-report { color: #000; }
+        .complaint-report h1 { text-align: center; font-size: 20px; font-weight: bold; margin: 0; }
+        .complaint-report .period { text-align: center; font-size: 12px; margin: 4px 0 12px; }
+        .complaint-table { table-layout: fixed; margin-top: 0; font-size: 9px; color: #000; }
+        .complaint-table th, .complaint-table td { border: 1px solid #000; padding: 5px 4px; text-align: center; vertical-align: middle; }
+        .complaint-table th { background: #d9d9d9; font-weight: bold; }
+        .complaint-note { margin-top: 8px; font-size: 10px; color: #000; }
     </style>
 </head>
 <body>
+    @if ($type === 'keluhan')
+        <section class="complaint-report">
+            <h1>LAPORAN DATA KELUHAN KOS</h1>
+            <p class="period">Periode: Mei-Agustus 2026</p>
+
+            <table class="complaint-table">
+                <thead>
+                    <tr>
+                        <th style="width: 3%;">No</th>
+                        <th style="width: 7%;">ID Keluhan</th>
+                        <th style="width: 7%;">ID Penyewa</th>
+                        <th style="width: 12%;">Nama Penyewa</th>
+                        <th style="width: 12%;">Nama Kos</th>
+                        <th style="width: 6%;">Kamar</th>
+                        <th style="width: 9%;">Tanggal</th>
+                        <th style="width: 10%;">Kategori</th>
+                        <th style="width: 26%;">Keluhan</th>
+                        <th style="width: 8%;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($rows as $row)
+                        <tr>
+                            <td>{{ $loop->iteration }}</td>
+                            <td>{{ $row->kode_keluhan ?: '-' }}</td>
+                            <td>{{ $row->penghuni->penyewa->kode_penyewa ?: '-' }}</td>
+                            <td>{{ $row->penghuni->penyewa->nama_lengkap }}</td>
+                            <td>{{ $row->penghuni->kamar->kos?->nama_kos ?: '-' }}</td>
+                            <td>{{ $row->penghuni->kamar->nama_kamar }}</td>
+                            <td>{{ $row->created_at->format('d/m/Y') }}</td>
+                            <td>{{ $row->kategori }}</td>
+                            <td>{{ $row->judul }}</td>
+                            <td>{{ $row->status_label }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="10">Tidak ada data keluhan.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+
+            <p class="complaint-note">Status keluhan: Baru, Diproses, dan Selesai. Data pada laporan merupakan data contoh/dummy untuk kebutuhan sistem.</p>
+        </section>
+    @else
     <h1>{{ $title }}</h1>
     <p class="meta">{{ config('app.name') }} | Tanggal cetak: {{ now()->format('d/m/Y H:i') }}</p>
     <p class="meta">Filter: {{ collect($filters)->filter()->map(fn ($v, $k) => "$k=$v")->join(', ') ?: 'Semua data' }}</p>
@@ -36,44 +87,7 @@
         </table>
     @endif
 
-    @if ($type === 'keluhan')
-        <p class="meta">Periode: Mei-Agustus 2026</p>
-        <p class="meta">Status keluhan: Baru, Diproses, dan Selesai.</p>
-        <table>
-            <thead>
-                <tr>
-                    <th>No</th>
-                    <th>ID Keluhan</th>
-                    <th>ID Penyewa</th>
-                    <th>Nama Penyewa</th>
-                    <th>Nama Kos</th>
-                    <th>Kamar</th>
-                    <th>Tanggal</th>
-                    <th>Kategori</th>
-                    <th>Keluhan</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($rows as $row)
-                    <tr>
-                        <td>{{ $loop->iteration }}</td>
-                        <td>{{ $row->kode_keluhan ?: '-' }}</td>
-                        <td>{{ $row->penghuni->penyewa->kode_penyewa ?: '-' }}</td>
-                        <td>{{ $row->penghuni->penyewa->nama_lengkap }}</td>
-                        <td>{{ $row->penghuni->kamar->kos?->nama_kos ?: '-' }}</td>
-                        <td>{{ $row->penghuni->kamar->nama_kamar }}</td>
-                        <td>{{ $row->created_at->format('d/m/Y') }}</td>
-                        <td>{{ $row->kategori }}</td>
-                        <td>{{ $row->judul }}</td>
-                        <td>{{ $row->status_label }}</td>
-                    </tr>
-                @empty
-                    <tr><td colspan="10">Tidak ada data keluhan.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    @elseif ($type === 'penyewa')
+    @if ($type === 'penyewa')
         <table>
             <thead>
                 <tr>
@@ -186,5 +200,6 @@
         <br><br><br>
         <p>________________________</p>
     </div>
+    @endif
 </body>
 </html>
