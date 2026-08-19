@@ -36,7 +36,44 @@
         </table>
     @endif
 
-    @if ($type === 'penyewa')
+    @if ($type === 'keluhan')
+        <p class="meta">Periode: Mei-Agustus 2026</p>
+        <p class="meta">Status keluhan: Baru, Diproses, dan Selesai.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>ID Keluhan</th>
+                    <th>ID Penyewa</th>
+                    <th>Nama Penyewa</th>
+                    <th>Nama Kos</th>
+                    <th>Kamar</th>
+                    <th>Tanggal</th>
+                    <th>Kategori</th>
+                    <th>Keluhan</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($rows as $row)
+                    <tr>
+                        <td>{{ $loop->iteration }}</td>
+                        <td>{{ $row->kode_keluhan ?: '-' }}</td>
+                        <td>{{ $row->penghuni->penyewa->kode_penyewa ?: '-' }}</td>
+                        <td>{{ $row->penghuni->penyewa->nama_lengkap }}</td>
+                        <td>{{ $row->penghuni->kamar->kos?->nama_kos ?: '-' }}</td>
+                        <td>{{ $row->penghuni->kamar->nama_kamar }}</td>
+                        <td>{{ $row->created_at->format('d/m/Y') }}</td>
+                        <td>{{ $row->kategori }}</td>
+                        <td>{{ $row->judul }}</td>
+                        <td>{{ $row->status_label }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="10">Tidak ada data keluhan.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    @elseif ($type === 'penyewa')
         <table>
             <thead>
                 <tr>

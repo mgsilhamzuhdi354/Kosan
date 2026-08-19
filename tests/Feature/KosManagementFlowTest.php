@@ -805,6 +805,10 @@ class KosManagementFlowTest extends TestCase
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
 
+        $this->actingAs($admin)->get(route('admin.laporan.index', 'keluhan'))
+            ->assertOk()
+            ->assertSee('LAPORAN DATA KELUHAN KOS');
+
         $this->actingAs($admin)->get(route('admin.keluhan.index', [
             'q' => 'Lampu',
             'kategori' => 'Listrik bermasalah',
@@ -870,6 +874,29 @@ class KosManagementFlowTest extends TestCase
         $this->assertEmpty($activeKosFotos->intersect($activeKamarFotos)->all());
         Storage::disk('public')->assertExists('dummy/bukti-lunas.pdf');
         Storage::disk('public')->assertExists('dummy/bukti-menunggu.pdf');
+
+        $this->assertSame(20, Keluhan::whereNotNull('kode_keluhan')->count());
+        $this->assertDatabaseHas('penyewas', ['kode_penyewa' => 'P001', 'nama_lengkap' => 'Nadia Putri']);
+        $this->assertDatabaseHas('keluhans', [
+            'kode_keluhan' => 'K020',
+            'kategori' => 'Fasilitas',
+            'judul' => 'Lampu kamar berkedip',
+            'status_keluhan' => Keluhan::STATUS_DIKIRIM,
+        ]);
+
+        $this->actingAs(User::where('email', 'admin@kos.com')->first())
+            ->get(route('admin.laporan.index', 'keluhan'))
+            ->assertOk()
+            ->assertSee('K001')
+            ->assertSee('P001')
+            ->assertSee('Kos Pondok Aer')
+            ->assertSee('Lampu kamar berkedip')
+            ->assertSee('Baru');
+
+        $this->actingAs(User::where('email', 'admin@kos.com')->first())
+            ->get(route('admin.laporan.pdf', 'keluhan'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
     }
 
     private function adminUser(): User

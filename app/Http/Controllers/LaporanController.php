@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Kamar;
+use App\Models\Keluhan;
 use App\Models\PembayaranAwal;
 use App\Models\PembayaranBulanan;
 use App\Models\Pemesanan;
@@ -25,6 +26,7 @@ class LaporanController extends Controller
         'tagihan-bulanan' => 'Laporan Tagihan Bulanan',
         'pembayaran-bulanan' => 'Laporan Pembayaran Bulanan',
         'terlambat' => 'Laporan Penghuni Terlambat Bayar',
+        'keluhan' => 'LAPORAN DATA KELUHAN KOS',
         'pendapatan' => 'Laporan Pendapatan Bulanan',
     ];
 
@@ -52,14 +54,20 @@ class LaporanController extends Controller
         $data = $this->dataFor($request, $type);
         $title = self::TYPES[$type];
 
-        return Pdf::loadView('pdf.laporan', [
+        $pdf = Pdf::loadView('pdf.laporan', [
             'title' => $title,
             'type' => $type,
             'rows' => $data['rows'],
             'totalPendapatan' => $data['totalPendapatan'],
             'summary' => $data['summary'],
             'filters' => $request->only(['tanggal_awal', 'tanggal_akhir', 'bulan', 'tahun', 'status']),
-        ])->download(str($title)->slug('-').'.pdf');
+        ]);
+
+        if ($type === 'keluhan') {
+            $pdf->setPaper('a4', 'landscape');
+        }
+
+        return $pdf->download(str($title)->slug('-').'.pdf');
     }
 
     private function dataFor(Request $request, string $type): array
@@ -101,6 +109,12 @@ class LaporanController extends Controller
             'terlambat' => TagihanBulanan::with(['penghuni.penyewa.user', 'penghuni.kamar'])
                 ->where('status_tagihan', TagihanBulanan::STATUS_TERLAMBAT)
                 ->latest()->get(),
+            'keluhan' => Keluhan::with(['penghuni.penyewa.user', 'penghuni.kamar.kos'])
+                ->when($request->filled('status'), fn ($q) => $q->where('status_keluhan', $request->status))
+                ->tap(fn ($q) => $dateFilter($q))
+                ->orderBy('created_at')
+                ->orderBy('kode_keluhan')
+                ->get(),
         };
 
         if (in_array($type, ['pembayaran-awal', 'pembayaran-bulanan', 'pendapatan'], true)) {
@@ -129,6 +143,15 @@ class LaporanController extends Controller
             ];
         }
 
+        if ($type === 'keluhan') {
+            return [
+                ['label' => 'Total Keluhan', 'value' => $rows->count()],
+                ['label' => 'Baru', 'value' => $rows->where('status_keluhan', Keluhan::STATUS_DIKIRIM)->count()],
+                ['label' => 'Diproses', 'value' => $rows->where('status_keluhan', Keluhan::STATUS_DIPROSES)->count()],
+                ['label' => 'Selesai', 'value' => $rows->where('status_keluhan', Keluhan::STATUS_SELESAI)->count()],
+            ];
+        }
+
         return [
             ['label' => 'Total Data', 'value' => $rows->count()],
             ['label' => 'Kamar Terisi', 'value' => Kamar::where('status', Kamar::STATUS_TERISI)->count()],
@@ -145,6 +168,7 @@ class LaporanController extends Controller
             'pembayaran-awal' => PembayaranAwal::STATUSES,
             'tagihan-bulanan' => TagihanBulanan::STATUSES,
             'pembayaran-bulanan', 'pendapatan' => PembayaranBulanan::STATUSES,
+            'keluhan' => [Keluhan::STATUS_DIKIRIM, Keluhan::STATUS_DIPROSES, Keluhan::STATUS_SELESAI],
             'kamar' => Kamar::STATUSES,
             default => [],
         };

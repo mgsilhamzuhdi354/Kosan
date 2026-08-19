@@ -13,6 +13,7 @@ class Penyewa extends Model
     use HasFactory;
 
     protected $fillable = [
+        'kode_penyewa',
         'user_id',
         'nama_lengkap',
         'no_hp',

@@ -24,15 +24,19 @@ class Keluhan extends Model
     ];
 
     public const KATEGORI = [
+        'Kebersihan',
+        'Fasilitas',
+        'Air',
+        'Keamanan',
+        'Internet',
         'Kamar rusak',
         'Air bermasalah',
         'Listrik bermasalah',
-        'Kebersihan',
-        'Keamanan',
         'Lainnya',
     ];
 
     protected $fillable = [
+        'kode_keluhan',
         'penghuni_id',
         'kategori',
         'judul',
@@ -50,5 +54,16 @@ class Keluhan extends Model
     public function getFotoUrlAttribute(): ?string
     {
         return $this->foto ? Storage::disk('public')->url($this->foto) : null;
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status_keluhan) {
+            self::STATUS_DIKIRIM => 'Baru',
+            self::STATUS_DIPROSES => 'Diproses',
+            self::STATUS_SELESAI => 'Selesai',
+            self::STATUS_DITOLAK => 'Ditolak',
+            default => ucfirst(str_replace('_', ' ', $this->status_keluhan)),
+        };
     }
 }

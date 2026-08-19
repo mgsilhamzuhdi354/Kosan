@@ -14,11 +14,12 @@ use App\Models\PenyediaKos;
 use App\Models\Penyewa;
 use App\Models\TagihanBulanan;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
 
 class DatabaseSeeder extends Seeder
 {
@@ -264,16 +265,8 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        Keluhan::updateOrCreate(
-            ['penghuni_id' => $penghuni->id, 'judul' => 'Area dapur perlu dibersihkan'],
-            [
-                'kategori' => 'Kebersihan',
-                'deskripsi' => 'Mohon jadwal kebersihan area dapur ditambah.',
-                'status_keluhan' => Keluhan::STATUS_DIPROSES,
-            ]
-        );
-
         $this->call(KostAssetSeeder::class);
+        $this->seedComplaintReportData();
     }
 
     private function ensureDemoPaymentProofs(): void
@@ -290,5 +283,133 @@ class DatabaseSeeder extends Seeder
                 .'</body></html>'
             )->output());
         });
+    }
+
+    private function seedComplaintReportData(): void
+    {
+        Keluhan::whereNull('kode_keluhan')
+            ->where('judul', 'Area dapur perlu dibersihkan')
+            ->where('deskripsi', 'Mohon jadwal kebersihan area dapur ditambah.')
+            ->delete();
+
+        $providerUser = User::updateOrCreate(
+            ['email' => 'laporan.keluhan@kos.com'],
+            [
+                'name' => 'Admin Data Keluhan Kos',
+                'password' => Hash::make('password'),
+                'role' => User::ROLE_PENYEDIA_KOS,
+            ]
+        );
+
+        $provider = PenyediaKos::updateOrCreate(
+            ['user_id' => $providerUser->id],
+            [
+                'nama_lengkap' => 'Admin Data Keluhan Kos',
+                'no_hp' => '083179749420',
+                'alamat' => 'Jl. Laporan Keluhan Kos, Betung',
+            ]
+        );
+
+        collect($this->complaintReportRows())->each(function (array $row) use ($provider) {
+            $user = User::updateOrCreate(
+                ['email' => strtolower($row['kode_penyewa']).'@kos.com'],
+                [
+                    'name' => $row['nama_penyewa'],
+                    'password' => Hash::make('penyewa123'),
+                    'role' => User::ROLE_PENYEWA,
+                ]
+            );
+
+            $penyewa = Penyewa::updateOrCreate(
+                ['kode_penyewa' => $row['kode_penyewa']],
+                [
+                    'user_id' => $user->id,
+                    'nama_lengkap' => $row['nama_penyewa'],
+                    'no_hp' => $row['no_hp'],
+                    'alamat' => 'Alamat '.$row['nama_penyewa'].' - Betung',
+                    'jenis_kelamin' => $row['jenis_kelamin'],
+                ]
+            );
+
+            $kos = Kos::updateOrCreate(
+                ['penyedia_kos_id' => $provider->id, 'nama_kos' => $row['nama_kos']],
+                [
+                    'alamat' => 'Jl. '.$row['nama_kos'].' Betung, Banyuasin',
+                    'kota' => 'Betung',
+                    'deskripsi' => 'Data kos untuk laporan keluhan sistem.',
+                    'foto' => null,
+                    'latitude' => -2.88,
+                    'longitude' => 104.22,
+                    'status' => Kos::STATUS_NONAKTIF,
+                    'is_promoted' => false,
+                ]
+            );
+
+            $kamar = Kamar::updateOrCreate(
+                ['kos_id' => $kos->id, 'nama_kamar' => $row['kamar']],
+                [
+                    'tipe_kamar' => 'Standar',
+                    'harga_bulanan' => 850000,
+                    'deskripsi' => 'Kamar '.$row['kamar'].' pada '.$row['nama_kos'].' untuk data laporan keluhan.',
+                    'foto' => null,
+                    'status' => Kamar::STATUS_TERISI,
+                ]
+            );
+
+            $penghuni = Penghuni::updateOrCreate(
+                ['penyewa_id' => $penyewa->id, 'kamar_id' => $kamar->id],
+                [
+                    'tanggal_masuk' => Carbon::create(2026, 5, 1),
+                    'harga_bulanan' => $kamar->harga_bulanan,
+                    'tanggal_jatuh_tempo' => Carbon::create(2026, 8, 25),
+                    'status_penghuni' => Penghuni::STATUS_AKTIF,
+                ]
+            );
+
+            $keluhan = Keluhan::updateOrCreate(
+                ['kode_keluhan' => $row['kode_keluhan']],
+                [
+                    'penghuni_id' => $penghuni->id,
+                    'kategori' => $row['kategori'],
+                    'judul' => $row['keluhan'],
+                    'deskripsi' => $row['keluhan'],
+                    'status_keluhan' => $row['status'],
+                    'catatan_admin' => null,
+                ]
+            );
+
+            $tanggal = Carbon::createFromFormat('d/m/Y', $row['tanggal'])->startOfDay();
+
+            Keluhan::withoutTimestamps(fn () => $keluhan->forceFill([
+                'created_at' => $tanggal,
+                'updated_at' => $tanggal,
+            ])->saveQuietly());
+        });
+    }
+
+    private function complaintReportRows(): array
+    {
+        return [
+            ['kode_keluhan' => 'K001', 'kode_penyewa' => 'P001', 'nama_penyewa' => 'Nadia Putri', 'nama_kos' => 'Kos Pondok Aer', 'kamar' => 'A3', 'tanggal' => '12/05/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Area dapur perlu dibersihkan', 'status' => Keluhan::STATUS_DIPROSES, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560001'],
+            ['kode_keluhan' => 'K002', 'kode_penyewa' => 'P002', 'nama_penyewa' => 'Siti Aminah', 'nama_kos' => 'Permata Kos', 'kamar' => 'B1', 'tanggal' => '14/05/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Lampu kamar mati', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560002'],
+            ['kode_keluhan' => 'K003', 'kode_penyewa' => 'P003', 'nama_penyewa' => 'Andi Saputra', 'nama_kos' => 'Asri Kos', 'kamar' => 'A2', 'tanggal' => '18/05/2026', 'kategori' => 'Air', 'keluhan' => 'Air kamar mandi tidak mengalir', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560003'],
+            ['kode_keluhan' => 'K004', 'kode_penyewa' => 'P004', 'nama_penyewa' => 'Rina Oktavia', 'nama_kos' => 'Citra Kos', 'kamar' => 'B2', 'tanggal' => '22/05/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Kipas angin tidak berfungsi', 'status' => Keluhan::STATUS_DIPROSES, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560004'],
+            ['kode_keluhan' => 'K005', 'kode_penyewa' => 'P005', 'nama_penyewa' => 'Dimas Pratama', 'nama_kos' => 'D Kost', 'kamar' => 'C1', 'tanggal' => '03/06/2026', 'kategori' => 'Keamanan', 'keluhan' => 'Kunci pintu kamar sulit digunakan', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560005'],
+            ['kode_keluhan' => 'K006', 'kode_penyewa' => 'P006', 'nama_penyewa' => 'Fitri Lestari', 'nama_kos' => 'Eka Kost', 'kamar' => 'C2', 'tanggal' => '07/06/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Sampah di area belakang belum diangkut', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560006'],
+            ['kode_keluhan' => 'K007', 'kode_penyewa' => 'P007', 'nama_penyewa' => 'Reza Maulana', 'nama_kos' => 'Cahaya Kost', 'kamar' => 'A1', 'tanggal' => '11/06/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Wi-Fi tidak dapat digunakan', 'status' => Keluhan::STATUS_DIPROSES, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560007'],
+            ['kode_keluhan' => 'K008', 'kode_penyewa' => 'P008', 'nama_penyewa' => 'Ayu Permata', 'nama_kos' => 'Mulia Kos', 'kamar' => 'B3', 'tanggal' => '16/06/2026', 'kategori' => 'Air', 'keluhan' => 'Keran kamar mandi bocor', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560008'],
+            ['kode_keluhan' => 'K009', 'kode_penyewa' => 'P009', 'nama_penyewa' => 'Fajar Ramadhan', 'nama_kos' => 'Kos Damai', 'kamar' => 'C3', 'tanggal' => '21/06/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Kamar mandi bersama kurang bersih', 'status' => Keluhan::STATUS_DIPROSES, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560009'],
+            ['kode_keluhan' => 'K010', 'kode_penyewa' => 'P010', 'nama_penyewa' => 'Salsabila Putri', 'nama_kos' => 'Indah Kos', 'kamar' => 'D1', 'tanggal' => '02/07/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Stop kontak kamar rusak', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560010'],
+            ['kode_keluhan' => 'K011', 'kode_penyewa' => 'P011', 'nama_penyewa' => 'Muhammad Rizky', 'nama_kos' => 'Rans Kos', 'kamar' => 'D2', 'tanggal' => '06/07/2026', 'kategori' => 'Keamanan', 'keluhan' => 'Lampu halaman depan mati', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560011'],
+            ['kode_keluhan' => 'K012', 'kode_penyewa' => 'P012', 'nama_penyewa' => 'Intan Permata', 'nama_kos' => 'Kos Pondok Aer', 'kamar' => 'A1', 'tanggal' => '11/07/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Tempat sampah penuh', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560012'],
+            ['kode_keluhan' => 'K013', 'kode_penyewa' => 'P013', 'nama_penyewa' => 'Yoga Pratama', 'nama_kos' => 'Permata Kos', 'kamar' => 'B2', 'tanggal' => '16/07/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Lemari kamar rusak', 'status' => Keluhan::STATUS_DIPROSES, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560013'],
+            ['kode_keluhan' => 'K014', 'kode_penyewa' => 'P014', 'nama_penyewa' => 'Desi Anggraini', 'nama_kos' => 'Asri Kos', 'kamar' => 'A3', 'tanggal' => '21/07/2026', 'kategori' => 'Air', 'keluhan' => 'Air keran kecil', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560014'],
+            ['kode_keluhan' => 'K015', 'kode_penyewa' => 'P015', 'nama_penyewa' => 'Bagas Aditya', 'nama_kos' => 'Citra Kos', 'kamar' => 'C1', 'tanggal' => '26/07/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Area parkir kotor', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560015'],
+            ['kode_keluhan' => 'K016', 'kode_penyewa' => 'P016', 'nama_penyewa' => 'Putri Amelia', 'nama_kos' => 'D Kost', 'kamar' => 'D2', 'tanggal' => '02/08/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'AC kurang dingin', 'status' => Keluhan::STATUS_DIPROSES, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560016'],
+            ['kode_keluhan' => 'K017', 'kode_penyewa' => 'P017', 'nama_penyewa' => 'Aldi Kurniawan', 'nama_kos' => 'Eka Kost', 'kamar' => 'A2', 'tanggal' => '06/08/2026', 'kategori' => 'Keamanan', 'keluhan' => 'Pintu gerbang sulit dikunci', 'status' => Keluhan::STATUS_DIPROSES, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560017'],
+            ['kode_keluhan' => 'K018', 'kode_penyewa' => 'P018', 'nama_penyewa' => 'Nabila Sari', 'nama_kos' => 'Cahaya Kost', 'kamar' => 'B1', 'tanggal' => '11/08/2026', 'kategori' => 'Internet', 'keluhan' => 'Koneksi Wi-Fi lambat', 'status' => Keluhan::STATUS_SELESAI, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560018'],
+            ['kode_keluhan' => 'K019', 'kode_penyewa' => 'P019', 'nama_penyewa' => 'Arif Hidayat', 'nama_kos' => 'Mulia Kos', 'kamar' => 'C2', 'tanggal' => '16/08/2026', 'kategori' => 'Kebersihan', 'keluhan' => 'Saluran pembuangan tersumbat', 'status' => Keluhan::STATUS_DIPROSES, 'jenis_kelamin' => 'Laki-laki', 'no_hp' => '081234560019'],
+            ['kode_keluhan' => 'K020', 'kode_penyewa' => 'P020', 'nama_penyewa' => 'Tiara Anjani', 'nama_kos' => 'Kos Damai', 'kamar' => 'D1', 'tanggal' => '18/08/2026', 'kategori' => 'Fasilitas', 'keluhan' => 'Lampu kamar berkedip', 'status' => Keluhan::STATUS_DIKIRIM, 'jenis_kelamin' => 'Perempuan', 'no_hp' => '081234560020'],
+        ];
     }
 }

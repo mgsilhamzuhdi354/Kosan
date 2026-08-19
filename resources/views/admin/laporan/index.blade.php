@@ -1,8 +1,11 @@
 <x-admin-layout header="Report & Laporan">
     @php
         $pdfParams = array_merge(['type' => $type], request()->query());
-        $showDateFilter = in_array($type, ['penyewaan', 'pemesanan', 'pembayaran-awal', 'pembayaran-bulanan', 'pendapatan'], true);
+        $showDateFilter = in_array($type, ['penyewaan', 'pemesanan', 'pembayaran-awal', 'pembayaran-bulanan', 'pendapatan', 'keluhan'], true);
         $showMonthFilter = $type === 'tagihan-bulanan';
+        $statusLabel = fn ($status) => $type === 'keluhan' && $status === \App\Models\Keluhan::STATUS_DIKIRIM
+            ? 'Baru'
+            : ucfirst(str_replace('_', ' ', $status));
     @endphp
 
     <section class="premium-surface rounded-3xl p-5 sm:p-6">
@@ -74,7 +77,7 @@
                             <select name="status" class="mt-1 w-full">
                                 <option value="">Semua status</option>
                                 @foreach ($statusOptions as $status)
-                                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst(str_replace('_', ' ', $status)) }}</option>
+                                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ $statusLabel($status) }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -100,98 +103,137 @@
                 </div>
 
                 <div class="mobile-safe-scroll overflow-x-auto">
-                    <table class="w-full min-w-[760px] text-left text-sm">
-                        <thead>
-                            <tr class="text-xs font-black uppercase tracking-wide text-slate-500">
-                                <th class="px-5 py-4">No</th>
-                                <th class="px-5 py-4">Data Utama</th>
-                                <th class="px-5 py-4">Keterangan</th>
-                                <th class="px-5 py-4">Status / Jumlah</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($rows as $row)
-                                <tr>
-                                    <td class="px-5 py-4 font-bold">{{ $loop->iteration }}</td>
-                                    <td class="px-5 py-4">
-                                        @if ($type === 'penyewaan')
-                                            <p class="font-extrabold">{{ $row->penyewa->nama_lengkap }}</p>
-                                            <p class="text-slate-500">{{ $row->kamar->nama_kamar }} - {{ $row->kamar->kos?->nama_kos }}</p>
-                                        @elseif ($type === 'kamar')
-                                            <p class="font-extrabold">{{ $row->nama_kamar }}</p>
-                                            <p class="text-slate-500">{{ $row->tipe_kamar }}</p>
-                                        @elseif ($type === 'penyewa')
-                                            <p class="font-extrabold">{{ $row->nama_lengkap }}</p>
-                                            <p class="text-slate-500">{{ $row->user->email }}</p>
-                                        @elseif ($type === 'penghuni')
-                                            <p class="font-extrabold">{{ $row->penyewa->nama_lengkap }}</p>
-                                            <p class="text-slate-500">{{ $row->kamar->nama_kamar }}</p>
-                                        @elseif ($type === 'pemesanan')
-                                            <p class="font-extrabold">{{ $row->penyewa->nama_lengkap }}</p>
-                                            <p class="text-slate-500">{{ $row->kamar->nama_kamar }}</p>
-                                        @elseif ($type === 'pembayaran-awal')
-                                            <p class="font-extrabold">{{ $row->pemesanan->penyewa->nama_lengkap }}</p>
-                                            <p class="text-slate-500">{{ $row->pemesanan->kamar->nama_kamar }}</p>
-                                        @elseif (in_array($type, ['tagihan-bulanan', 'terlambat'], true))
-                                            <p class="font-extrabold">{{ $row->penghuni->penyewa->nama_lengkap }}</p>
-                                            <p class="text-slate-500">{{ $row->penghuni->kamar->nama_kamar }}</p>
-                                        @else
-                                            <p class="font-extrabold">{{ $row->tagihanBulanan->penghuni->penyewa->nama_lengkap }}</p>
-                                            <p class="text-slate-500">{{ $row->tagihanBulanan->penghuni->kamar->nama_kamar }}</p>
-                                        @endif
-                                    </td>
-                                    <td class="px-5 py-4 text-slate-600">
-                                        @if ($type === 'penyewaan')
-                                            Masuk {{ $row->tanggal_masuk->format('d/m/Y') }}<br>Jatuh tempo {{ $row->tanggal_jatuh_tempo->format('d/m/Y') }}
-                                        @elseif ($type === 'kamar')
-                                            {{ $row->fasilitas->pluck('nama_fasilitas')->join(', ') ?: '-' }}
-                                        @elseif ($type === 'penyewa')
-                                            {{ $row->no_hp }}<br>{{ $row->alamat }}
-                                        @elseif ($type === 'penghuni')
-                                            Masuk {{ $row->tanggal_masuk->format('d/m/Y') }}
-                                        @elseif ($type === 'pemesanan')
-                                            Pesan {{ $row->tanggal_pesan->format('d/m/Y') }}<br>Masuk {{ $row->tanggal_masuk->format('d/m/Y') }}
-                                        @elseif ($type === 'pembayaran-awal')
-                                            Bayar {{ optional($row->tanggal_bayar)->format('d/m/Y') ?: '-' }}
-                                        @elseif (in_array($type, ['tagihan-bulanan', 'terlambat'], true))
-                                            Periode {{ $row->periode }}<br>Jatuh tempo {{ $row->tanggal_jatuh_tempo->format('d/m/Y') }}
-                                        @else
-                                            Periode {{ $row->tagihanBulanan->periode }}<br>Bayar {{ $row->tanggal_bayar->format('d/m/Y') }}
-                                        @endif
-                                    </td>
-                                    <td class="px-5 py-4">
-                                        @if ($type === 'penyewaan')
-                                            <span class="status-badge">{{ ucfirst($row->status_penghuni) }}</span><br>
-                                            <span class="mt-2 inline-block font-black">{{ $row->harga_format }}</span>
-                                        @elseif ($type === 'kamar')
-                                            <span class="status-badge">{{ ucfirst($row->status) }}</span><br>
-                                            <span class="mt-2 inline-block font-black">{{ $row->harga_format }}</span>
-                                        @elseif ($type === 'penghuni')
-                                            <span class="status-badge">{{ ucfirst($row->status_penghuni) }}</span><br>
-                                            <span class="mt-2 inline-block font-black">{{ $row->harga_format }}</span>
-                                        @elseif ($type === 'pemesanan')
-                                            <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $row->status_pemesanan)) }}</span>
-                                        @elseif ($type === 'pembayaran-awal')
-                                            <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $row->status_pembayaran)) }}</span><br>
-                                            <span class="mt-2 inline-block font-black">{{ $row->jumlah_format }}</span>
-                                        @elseif (in_array($type, ['tagihan-bulanan', 'terlambat'], true))
-                                            <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $row->status_tagihan)) }}</span><br>
-                                            <span class="mt-2 inline-block font-black">{{ $row->jumlah_format }}</span>
-                                        @elseif (in_array($type, ['pembayaran-bulanan', 'pendapatan'], true))
-                                            <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $row->status_pembayaran)) }}</span><br>
-                                            <span class="mt-2 inline-block font-black">{{ $row->jumlah_format }}</span>
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
+                    @if ($type === 'keluhan')
+                        <table class="w-full min-w-[1120px] text-left text-sm">
+                            <thead>
+                                <tr class="text-xs font-black uppercase tracking-wide text-slate-500">
+                                    <th class="px-4 py-4">No</th>
+                                    <th class="px-4 py-4">ID Keluhan</th>
+                                    <th class="px-4 py-4">ID Penyewa</th>
+                                    <th class="px-4 py-4">Nama Penyewa</th>
+                                    <th class="px-4 py-4">Nama Kos</th>
+                                    <th class="px-4 py-4">Kamar</th>
+                                    <th class="px-4 py-4">Tanggal</th>
+                                    <th class="px-4 py-4">Kategori</th>
+                                    <th class="px-4 py-4">Keluhan</th>
+                                    <th class="px-4 py-4">Status</th>
                                 </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="px-5 py-8 text-center text-slate-500">Tidak ada data sesuai filter.</td>
+                            </thead>
+                            <tbody>
+                                @forelse ($rows as $row)
+                                    <tr>
+                                        <td class="px-4 py-4 font-bold">{{ $loop->iteration }}</td>
+                                        <td class="px-4 py-4 font-extrabold">{{ $row->kode_keluhan ?: '-' }}</td>
+                                        <td class="px-4 py-4">{{ $row->penghuni->penyewa->kode_penyewa ?: '-' }}</td>
+                                        <td class="px-4 py-4 font-extrabold">{{ $row->penghuni->penyewa->nama_lengkap }}</td>
+                                        <td class="px-4 py-4">{{ $row->penghuni->kamar->kos?->nama_kos ?: '-' }}</td>
+                                        <td class="px-4 py-4">{{ $row->penghuni->kamar->nama_kamar }}</td>
+                                        <td class="px-4 py-4">{{ $row->created_at->format('d/m/Y') }}</td>
+                                        <td class="px-4 py-4">{{ $row->kategori }}</td>
+                                        <td class="px-4 py-4 text-slate-600">{{ $row->judul }}</td>
+                                        <td class="px-4 py-4"><span class="status-badge">{{ $row->status_label }}</span></td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="10" class="px-5 py-8 text-center text-slate-500">Tidak ada data sesuai filter.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    @else
+                        <table class="w-full min-w-[760px] text-left text-sm">
+                            <thead>
+                                <tr class="text-xs font-black uppercase tracking-wide text-slate-500">
+                                    <th class="px-5 py-4">No</th>
+                                    <th class="px-5 py-4">Data Utama</th>
+                                    <th class="px-5 py-4">Keterangan</th>
+                                    <th class="px-5 py-4">Status / Jumlah</th>
                                 </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @forelse ($rows as $row)
+                                    <tr>
+                                        <td class="px-5 py-4 font-bold">{{ $loop->iteration }}</td>
+                                        <td class="px-5 py-4">
+                                            @if ($type === 'penyewaan')
+                                                <p class="font-extrabold">{{ $row->penyewa->nama_lengkap }}</p>
+                                                <p class="text-slate-500">{{ $row->kamar->nama_kamar }} - {{ $row->kamar->kos?->nama_kos }}</p>
+                                            @elseif ($type === 'kamar')
+                                                <p class="font-extrabold">{{ $row->nama_kamar }}</p>
+                                                <p class="text-slate-500">{{ $row->tipe_kamar }}</p>
+                                            @elseif ($type === 'penyewa')
+                                                <p class="font-extrabold">{{ $row->nama_lengkap }}</p>
+                                                <p class="text-slate-500">{{ $row->user->email }}</p>
+                                            @elseif ($type === 'penghuni')
+                                                <p class="font-extrabold">{{ $row->penyewa->nama_lengkap }}</p>
+                                                <p class="text-slate-500">{{ $row->kamar->nama_kamar }}</p>
+                                            @elseif ($type === 'pemesanan')
+                                                <p class="font-extrabold">{{ $row->penyewa->nama_lengkap }}</p>
+                                                <p class="text-slate-500">{{ $row->kamar->nama_kamar }}</p>
+                                            @elseif ($type === 'pembayaran-awal')
+                                                <p class="font-extrabold">{{ $row->pemesanan->penyewa->nama_lengkap }}</p>
+                                                <p class="text-slate-500">{{ $row->pemesanan->kamar->nama_kamar }}</p>
+                                            @elseif (in_array($type, ['tagihan-bulanan', 'terlambat'], true))
+                                                <p class="font-extrabold">{{ $row->penghuni->penyewa->nama_lengkap }}</p>
+                                                <p class="text-slate-500">{{ $row->penghuni->kamar->nama_kamar }}</p>
+                                            @else
+                                                <p class="font-extrabold">{{ $row->tagihanBulanan->penghuni->penyewa->nama_lengkap }}</p>
+                                                <p class="text-slate-500">{{ $row->tagihanBulanan->penghuni->kamar->nama_kamar }}</p>
+                                            @endif
+                                        </td>
+                                        <td class="px-5 py-4 text-slate-600">
+                                            @if ($type === 'penyewaan')
+                                                Masuk {{ $row->tanggal_masuk->format('d/m/Y') }}<br>Jatuh tempo {{ $row->tanggal_jatuh_tempo->format('d/m/Y') }}
+                                            @elseif ($type === 'kamar')
+                                                {{ $row->fasilitas->pluck('nama_fasilitas')->join(', ') ?: '-' }}
+                                            @elseif ($type === 'penyewa')
+                                                {{ $row->no_hp }}<br>{{ $row->alamat }}
+                                            @elseif ($type === 'penghuni')
+                                                Masuk {{ $row->tanggal_masuk->format('d/m/Y') }}
+                                            @elseif ($type === 'pemesanan')
+                                                Pesan {{ $row->tanggal_pesan->format('d/m/Y') }}<br>Masuk {{ $row->tanggal_masuk->format('d/m/Y') }}
+                                            @elseif ($type === 'pembayaran-awal')
+                                                Bayar {{ optional($row->tanggal_bayar)->format('d/m/Y') ?: '-' }}
+                                            @elseif (in_array($type, ['tagihan-bulanan', 'terlambat'], true))
+                                                Periode {{ $row->periode }}<br>Jatuh tempo {{ $row->tanggal_jatuh_tempo->format('d/m/Y') }}
+                                            @else
+                                                Periode {{ $row->tagihanBulanan->periode }}<br>Bayar {{ $row->tanggal_bayar->format('d/m/Y') }}
+                                            @endif
+                                        </td>
+                                        <td class="px-5 py-4">
+                                            @if ($type === 'penyewaan')
+                                                <span class="status-badge">{{ ucfirst($row->status_penghuni) }}</span><br>
+                                                <span class="mt-2 inline-block font-black">{{ $row->harga_format }}</span>
+                                            @elseif ($type === 'kamar')
+                                                <span class="status-badge">{{ ucfirst($row->status) }}</span><br>
+                                                <span class="mt-2 inline-block font-black">{{ $row->harga_format }}</span>
+                                            @elseif ($type === 'penghuni')
+                                                <span class="status-badge">{{ ucfirst($row->status_penghuni) }}</span><br>
+                                                <span class="mt-2 inline-block font-black">{{ $row->harga_format }}</span>
+                                            @elseif ($type === 'pemesanan')
+                                                <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $row->status_pemesanan)) }}</span>
+                                            @elseif ($type === 'pembayaran-awal')
+                                                <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $row->status_pembayaran)) }}</span><br>
+                                                <span class="mt-2 inline-block font-black">{{ $row->jumlah_format }}</span>
+                                            @elseif (in_array($type, ['tagihan-bulanan', 'terlambat'], true))
+                                                <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $row->status_tagihan)) }}</span><br>
+                                                <span class="mt-2 inline-block font-black">{{ $row->jumlah_format }}</span>
+                                            @elseif (in_array($type, ['pembayaran-bulanan', 'pendapatan'], true))
+                                                <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $row->status_pembayaran)) }}</span><br>
+                                                <span class="mt-2 inline-block font-black">{{ $row->jumlah_format }}</span>
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="px-5 py-8 text-center text-slate-500">Tidak ada data sesuai filter.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    @endif
                 </div>
             </section>
         </div>
