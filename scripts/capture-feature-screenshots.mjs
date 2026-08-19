@@ -16,8 +16,8 @@ const viewports = {
 const credentials = {
   admin: { email: 'admin@kos.com', password: 'password' },
   penyedia: { email: 'penyedia@kos.com', password: 'password' },
-  penyewa_siti: { email: 'siti@kos.com', password: 'password' },
-  penyewa_nadia: { email: 'nadia@kos.com', password: 'password' },
+  penyewa_siti: { email: 'siti@kos.com', password: 'penyewa123' },
+  penyewa_nadia: { email: 'nadia@kos.com', password: 'penyewa123' },
 };
 
 class CdpPage {

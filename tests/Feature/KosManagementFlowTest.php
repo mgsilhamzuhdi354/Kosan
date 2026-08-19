@@ -750,6 +750,10 @@ class KosManagementFlowTest extends TestCase
             ->assertSee('Kamar Report A1')
             ->assertSee('Estimasi Sewa Aktif');
 
+        $this->actingAs($admin)->get(route('admin.laporan.pdf', 'penyewa'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
         $this->actingAs($admin)->get(route('admin.keluhan.index', [
             'q' => 'Lampu',
             'kategori' => 'Listrik bermasalah',
@@ -763,19 +767,19 @@ class KosManagementFlowTest extends TestCase
         $this->seed(KostAssetSeeder::class);
 
         $this->assertDatabaseHas('kos', [
-            'nama_kos' => 'Asri Kost',
+            'nama_kos' => 'Kos Putri Asri',
             'foto' => 'assets/kos/asri-kost.jpeg',
             'status' => Kos::STATUS_AKTIF,
         ]);
 
         $this->assertDatabaseHas('penyedia_kos', ['nama_lengkap' => 'Ibu Fitri Permata']);
-        $this->assertDatabaseHas('kamars', ['nama_kamar' => 'Permata F3', 'status' => Kamar::STATUS_TERSEDIA]);
+        $this->assertDatabaseHas('kamars', ['nama_kamar' => 'Putri Permata F3', 'status' => Kamar::STATUS_TERSEDIA]);
 
         $this->get(route('home'))
             ->assertOk()
             ->assertSee('Pilihan kost dari beberapa penyedia')
-            ->assertSee('Asri Kost')
-            ->assertSee('Permata Kost');
+            ->assertSee('Kos Putri Asri')
+            ->assertSee('Kos Putri Permata');
     }
 
     public function test_database_seeder_can_be_repeated_without_duplicate_demo_data(): void

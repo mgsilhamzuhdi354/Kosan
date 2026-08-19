@@ -8,11 +8,9 @@
         </div>
         <div>
             <label class="text-sm font-bold">Kos</label>
-            <select name="kos_id" class="mt-1 w-full rounded-lg border-slate-300">
-                @foreach (($kosOptions ?? collect()) as $kos)
-                    <option value="{{ $kos->id }}" @selected(old('kos_id', $kamar->kos_id) == $kos->id)>{{ $kos->nama_kos }}</option>
-                @endforeach
-            </select>
+            <input name="nama_kos" value="{{ old('nama_kos', $defaultKosName ?? '') }}" class="mt-1 w-full rounded-lg border-slate-300" required>
+            @error('nama_kos') <p class="mt-1 text-sm font-bold text-red-600">{{ $message }}</p> @enderror
+            @error('kos_id') <p class="mt-1 text-sm font-bold text-red-600">{{ $message }}</p> @enderror
         </div>
         <div>
             <label class="text-sm font-bold">Tipe Kamar</label>

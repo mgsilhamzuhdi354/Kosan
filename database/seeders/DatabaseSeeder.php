@@ -68,15 +68,15 @@ class DatabaseSeeder extends Seeder
         );
 
         $kosTambahan = collect([
-            ['Kos Putri Damai', 'Jl. Serasi Betung, Banyuasin', -2.8798, 104.2212, true],
-            ['Kos Exclusive Gejayan Betung', 'Jl. Palembang Betung No. 22', -2.8912, 104.2098, false],
-            ['Kos Nyaman Setu', 'Jl. Setu Raya Betung', -2.8724, 104.2305, true],
+            ['Kos Putri Harmoni', 'Jl. Serasi Betung, Banyuasin', -2.8798, 104.2212, true],
+            ['Kos Putri Exclusive Betung', 'Jl. Palembang Betung No. 22', -2.8912, 104.2098, false],
+            ['Kos Putri Nyaman Setu', 'Jl. Setu Raya Betung', -2.8724, 104.2305, true],
         ])->map(fn ($item) => Kos::updateOrCreate(
             ['penyedia_kos_id' => $penyedia->id, 'nama_kos' => $item[0]],
             [
                 'alamat' => $item[1],
                 'kota' => 'Betung',
-                'deskripsi' => 'Pilihan kos nyaman dengan fasilitas lengkap untuk demo pencarian lokasi.',
+                    'deskripsi' => 'Pilihan kos putri nyaman dengan fasilitas lengkap untuk demo pencarian lokasi.',
                 'latitude' => $item[2],
                 'longitude' => $item[3],
                 'status' => Kos::STATUS_AKTIF,
@@ -95,7 +95,7 @@ class DatabaseSeeder extends Seeder
                 ['email' => $item[1]],
                 [
                     'name' => $item[0],
-                    'password' => Hash::make('password'),
+                    'password' => Hash::make('penyewa123'),
                     'role' => User::ROLE_PENYEWA,
                 ]
             );

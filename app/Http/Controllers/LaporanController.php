@@ -16,9 +16,9 @@ use Illuminate\View\View;
 class LaporanController extends Controller
 {
     public const TYPES = [
+        'penyewa' => 'Laporan Data Penyewa',
         'penyewaan' => 'Report Penyewaan',
         'kamar' => 'Laporan Data Kamar',
-        'penyewa' => 'Laporan Data Penyewa',
         'penghuni' => 'Laporan Data Penghuni Aktif',
         'pemesanan' => 'Laporan Pemesanan Kamar',
         'pembayaran-awal' => 'Laporan Pembayaran Awal',
@@ -28,7 +28,7 @@ class LaporanController extends Controller
         'pendapatan' => 'Laporan Pendapatan Bulanan',
     ];
 
-    public function index(Request $request, string $type = 'penyewaan'): View
+    public function index(Request $request, string $type = 'penyewa'): View
     {
         abort_unless(array_key_exists($type, self::TYPES), 404);
 

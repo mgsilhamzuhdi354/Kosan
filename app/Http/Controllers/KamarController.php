@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Fasilitas;
 use App\Models\Kamar;
 use App\Models\Kos;
+use App\Models\PenyediaKos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class KamarController extends Controller
@@ -38,7 +40,7 @@ class KamarController extends Controller
             'fasilitas' => Fasilitas::orderBy('nama_fasilitas')->get(),
             'selectedFasilitas' => [],
             'statuses' => Kamar::STATUSES,
-            'kosOptions' => Kos::orderBy('nama_kos')->get(),
+            'defaultKosName' => $this->kosNameFromRequest(),
         ]);
     }
 
@@ -72,7 +74,7 @@ class KamarController extends Controller
             'fasilitas' => Fasilitas::orderBy('nama_fasilitas')->get(),
             'selectedFasilitas' => $kamar->fasilitas()->pluck('fasilitas.id')->toArray(),
             'statuses' => Kamar::STATUSES,
-            'kosOptions' => Kos::orderBy('nama_kos')->get(),
+            'defaultKosName' => $this->kosNameFromKamar($kamar),
         ]);
     }
 
@@ -171,7 +173,7 @@ class KamarController extends Controller
             'fasilitas' => Fasilitas::visibleForPenyedia($penyedia->id)->orderBy('nama_fasilitas')->get(),
             'selectedFasilitas' => [],
             'statuses' => Kamar::STATUSES,
-            'kosOptions' => $penyedia->kos()->orderBy('nama_kos')->get(),
+            'defaultKosName' => $this->kosNameFromRequest($penyedia->id),
         ]);
     }
 
@@ -211,7 +213,7 @@ class KamarController extends Controller
             'fasilitas' => Fasilitas::visibleForPenyedia($penyedia->id)->orderBy('nama_fasilitas')->get(),
             'selectedFasilitas' => $kamar->fasilitas()->pluck('fasilitas.id')->toArray(),
             'statuses' => Kamar::STATUSES,
-            'kosOptions' => $penyedia->kos()->orderBy('nama_kos')->get(),
+            'defaultKosName' => $this->kosNameFromKamar($kamar),
         ]);
     }
 
@@ -256,28 +258,23 @@ class KamarController extends Controller
 
     private function validatedData(Request $request, ?Kamar $kamar = null, ?array $allowedKosIds = null, ?array $allowedFasilitasIds = null): array
     {
-        $kosId = $request->input('kos_id', $kamar?->kos_id);
-        $kosRule = Rule::exists('kos', 'id');
+        $kos = $this->resolveKos($request, $kamar, $allowedKosIds);
         $fasilitasRule = Rule::exists('fasilitas', 'id');
-
-        if ($allowedKosIds !== null) {
-            $kosRule->where(fn ($query) => $query->whereIn('id', $allowedKosIds));
-        }
 
         if ($allowedFasilitasIds !== null) {
             $fasilitasRule->where(fn ($query) => $query->whereIn('id', $allowedFasilitasIds));
         }
 
-        return $request->validate([
+        $data = $request->validate([
+            'nama_kos' => ['nullable', 'string', 'max:255'],
             'nama_kamar' => [
                 'required',
                 'string',
                 'max:100',
                 Rule::unique('kamars', 'nama_kamar')
-                    ->where(fn ($query) => $query->where('kos_id', $kosId))
+                    ->where(fn ($query) => $query->where('kos_id', $kos->id))
                     ->ignore($kamar),
             ],
-            'kos_id' => ['required', $kosRule],
             'tipe_kamar' => ['required', 'string', 'max:100'],
             'harga_bulanan' => ['required', 'integer', 'min:1'],
             'deskripsi' => ['required', 'string'],
@@ -287,10 +284,107 @@ class KamarController extends Controller
             'fasilitas.*' => [$fasilitasRule],
         ], [
             'nama_kamar.unique' => 'Nama kamar sudah digunakan pada kos yang dipilih.',
-            'kos_id.required' => 'Pilih kos terlebih dahulu.',
+            'nama_kos.required' => 'Nama kos wajib diisi.',
             'kos_id.exists' => 'Kos yang dipilih tidak valid.',
             'fasilitas.*.exists' => 'Fasilitas yang dipilih tidak valid.',
         ]);
+
+        $data['kos_id'] = $kos->id;
+        unset($data['nama_kos']);
+
+        return $data;
+    }
+
+    private function resolveKos(Request $request, ?Kamar $kamar = null, ?array $allowedKosIds = null): Kos
+    {
+        $namaKos = trim((string) $request->input('nama_kos', ''));
+        $penyedia = auth()->user()->penyediaKos;
+
+        if ($namaKos !== '') {
+            if ($allowedKosIds !== null) {
+                return $penyedia->kos()->firstOrCreate(
+                    ['nama_kos' => $namaKos],
+                    [
+                        'alamat' => $penyedia->alamat,
+                        'kota' => 'Betung',
+                        'deskripsi' => 'Kos baru yang dibuat saat menambah data kamar.',
+                        'status' => Kos::STATUS_AKTIF,
+                    ]
+                );
+            }
+
+            $adminPenyedia = $penyedia ?: $this->adminPenyediaKos();
+
+            return Kos::firstOrCreate(
+                ['nama_kos' => $namaKos],
+                [
+                    'penyedia_kos_id' => $adminPenyedia->id,
+                    'alamat' => $adminPenyedia->alamat,
+                    'kota' => 'Betung',
+                    'deskripsi' => 'Kos baru yang dibuat saat menambah data kamar.',
+                    'status' => Kos::STATUS_AKTIF,
+                ]
+            );
+        }
+
+        $kosId = $request->input('kos_id', $kamar?->kos_id);
+
+        if ($kosId) {
+            $query = Kos::query()->whereKey($kosId);
+
+            if ($allowedKosIds !== null) {
+                $query->whereIn('id', $allowedKosIds);
+            }
+
+            $kos = $query->first();
+
+            if ($kos) {
+                return $kos;
+            }
+
+            throw ValidationException::withMessages([
+                'kos_id' => 'Kos yang dipilih tidak valid.',
+            ]);
+        }
+
+        throw ValidationException::withMessages([
+            'nama_kos' => 'Nama kos wajib diisi.',
+        ]);
+    }
+
+    private function adminPenyediaKos(): PenyediaKos
+    {
+        $user = auth()->user();
+
+        return PenyediaKos::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'nama_lengkap' => $user->name,
+                'no_hp' => '083179749407',
+                'alamat' => 'Betung, Banyuasin',
+            ]
+        );
+    }
+
+    private function kosNameFromRequest(?int $penyediaId = null): ?string
+    {
+        $kosId = request('kos_id');
+
+        if (! $kosId) {
+            return null;
+        }
+
+        return Kos::query()
+            ->when($penyediaId, fn ($query) => $query->where('penyedia_kos_id', $penyediaId))
+            ->whereKey($kosId)
+            ->value('nama_kos');
+    }
+
+    private function kosNameFromKamar(Kamar $kamar): ?string
+    {
+        $kamar->loadMissing('kos');
+
+        return $kamar->kos?->nama_kos;
     }
 
     private function ownedKosIds(): array

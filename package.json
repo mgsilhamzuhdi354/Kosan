@@ -7,6 +7,7 @@
         "dev": "vite"
     },
     "devDependencies": {
+        "@playwright/test": "^1.62.1",
         "@tailwindcss/forms": "^0.5.2",
         "@tailwindcss/vite": "^4.0.0",
         "alpinejs": "^3.4.2",
@@ -21,7 +22,7 @@
     "dependencies": {
         "chart.js": "^4.5.1"
     },
-    "name": "kost-banyuasin",
+    "name": "kos-putri-betung",
     "version": "1.0.0",
     "description": "<p align=\"center\"><a href=\"https://laravel.com\" target=\"_blank\"><img src=\"https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg\" width=\"400\" alt=\"Laravel Logo\"></a></p>",
     "main": "postcss.config.js",
