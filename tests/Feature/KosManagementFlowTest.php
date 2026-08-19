@@ -569,6 +569,7 @@ class KosManagementFlowTest extends TestCase
 
         $dp = PembayaranAwal::first();
         $this->assertSame(PembayaranAwal::STATUS_MENUNGGU, $dp->status_pembayaran);
+        $this->actingAs($admin)->get($dp->bukti_url)->assertOk();
 
         $this->actingAs($admin)->patch(route('admin.pembayaran-awal.approve', $dp))->assertRedirect();
 
@@ -587,6 +588,7 @@ class KosManagementFlowTest extends TestCase
 
         $pembayaranBulanan = PembayaranBulanan::first();
         $this->assertSame(TagihanBulanan::STATUS_MENUNGGU, $tagihan->fresh()->status_tagihan);
+        $this->actingAs($admin)->get($pembayaranBulanan->bukti_url)->assertOk();
 
         $this->actingAs($admin)->patch(route('admin.pembayaran-bulanan.approve', $pembayaranBulanan))->assertRedirect();
         $this->assertSame(TagihanBulanan::STATUS_LUNAS, $tagihan->fresh()->status_tagihan);
@@ -866,6 +868,8 @@ class KosManagementFlowTest extends TestCase
         $this->assertSame(Kamar::whereHas('kos', fn ($query) => $query->where('status', Kos::STATUS_AKTIF))->count(), $activeKamarFotos->count());
         $this->assertSame($activeKamarFotos->count(), $activeKamarFotos->unique()->count());
         $this->assertEmpty($activeKosFotos->intersect($activeKamarFotos)->all());
+        Storage::disk('public')->assertExists('dummy/bukti-lunas.pdf');
+        Storage::disk('public')->assertExists('dummy/bukti-menunggu.pdf');
     }
 
     private function adminUser(): User

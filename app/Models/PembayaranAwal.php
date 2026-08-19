@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 
 class PembayaranAwal extends Model
 {
@@ -43,7 +42,7 @@ class PembayaranAwal extends Model
 
     public function getBuktiUrlAttribute(): ?string
     {
-        return $this->bukti_bayar ? Storage::disk('public')->url($this->bukti_bayar) : null;
+        return $this->bukti_bayar ? route('bukti-pembayaran.show', ['path' => $this->bukti_bayar]) : null;
     }
 
     public function getJumlahFormatAttribute(): string

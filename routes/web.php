@@ -11,6 +11,7 @@ use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\PembayaranAwalController;
 use App\Http\Controllers\PembayaranBulananController;
 use App\Http\Controllers\PemesananController;
+use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\PenghuniController;
 use App\Http\Controllers\PenyediaDashboardController;
 use App\Http\Controllers\PenyediaKeuanganController;
@@ -71,6 +72,10 @@ Route::middleware(['auth', 'role:penyedia_kos'])->prefix('penyedia')->name('peny
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/bukti-pembayaran/{path}', [PaymentProofController::class, 'show'])
+        ->where('path', '.*')
+        ->name('bukti-pembayaran.show');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

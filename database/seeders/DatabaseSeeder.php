@@ -16,7 +16,9 @@ use App\Models\TagihanBulanan;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class DatabaseSeeder extends Seeder
 {
@@ -27,6 +29,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->ensureDemoPaymentProofs();
+
         User::updateOrCreate(
             ['email' => 'admin@kos.com'],
             [
@@ -270,5 +274,21 @@ class DatabaseSeeder extends Seeder
         );
 
         $this->call(KostAssetSeeder::class);
+    }
+
+    private function ensureDemoPaymentProofs(): void
+    {
+        collect([
+            'dummy/bukti-lunas.pdf' => 'Bukti Pembayaran Lunas',
+            'dummy/bukti-menunggu.pdf' => 'Bukti Pembayaran Menunggu Konfirmasi',
+        ])->each(function (string $title, string $path) {
+            Storage::disk('public')->put($path, Pdf::loadHTML(
+                '<html><body style="font-family: DejaVu Sans, sans-serif;">'
+                .'<h1>'.$title.'</h1>'
+                .'<p>Dokumen demo untuk validasi bukti pembayaran Kos Putri Betung.</p>'
+                .'<p>Tanggal dibuat: '.now()->format('d/m/Y H:i').'</p>'
+                .'</body></html>'
+            )->output());
+        });
     }
 }
